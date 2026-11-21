@@ -279,9 +279,12 @@ def build_pixal3d_mv_api_prompt(
             "inputs": {
                 "mesh": ["92", 0],
                 "resolution": remesh_res,
-                # ComfyUI 0.46 defines sign_mode as a DynamicCombo. Its mode-specific
-                # fields must be nested in this value; top-level qef/fill are ignored.
-                "sign_mode": {"sign_mode": "solid", "fill": 20.0, "qef": False},
+                # DynamicCombo API prompts use flattened dotted input names (matching
+                # ComfyUI's widgets_values_named), not a nested object. Without the
+                # root string, execute() never receives its required sign_mode argument.
+                "sign_mode": "solid",
+                "sign_mode.fill": 20.0,
+                "sign_mode.qef": False,
                 "band": 1,
                 "project_back": 0,
                 "fix_poles": False,
@@ -376,9 +379,9 @@ def run_comfy_pixal3d_multiview(
     target_tris: int = 7500,
     texture_size: int = 1024,
     seed: int = 42,
-    timeout_sec: int = 900,
+    timeout_sec: int = 3600,
 ) -> Path:
-    """Upload 2-4 views to local ComfyUI, execute Pixal3D Multi-View (6 GB VRAM config), save GLB."""
+    """Upload 2-4 views, execute Pixal3D, and save GLB (allows up to 60 min on low-VRAM PCs)."""
     base = comfy_url.rstrip("/")
     client_id = str(uuid.uuid4())
     uploaded_names: Dict[str, str] = {}
@@ -424,7 +427,15 @@ def run_comfy_pixal3d_multiview(
             if h_resp.status_code == 200:
                 hist = h_resp.json()
                 if prompt_id in hist:
-                    outputs = hist[prompt_id].get("outputs", {})
+                    history_entry = hist[prompt_id]
+                    status = history_entry.get("status", {})
+                    for event, payload in status.get("messages", []):
+                        if event == "execution_error" and isinstance(payload, dict):
+                            node = payload.get("node_type") or payload.get("node_id") or "ComfyUI node"
+                            error_type = payload.get("exception_type", "ExecutionError")
+                            error_message = payload.get("exception_message", "Unknown node error")
+                            raise RuntimeError(f"Pixal3D failed in {node}: {error_type}: {error_message}")
+                    outputs = history_entry.get("outputs", {})
                     for node_out in outputs.values():
                         for key in ("3d", "result", "model_3d", "gltf", "meshes"):
                             items = node_out.get(key, [])

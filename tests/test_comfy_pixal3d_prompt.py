@@ -33,10 +33,9 @@ class Pixal3DPromptCompatibilityTests(unittest.TestCase):
     def test_minimum_trellis_upsample_and_current_mesh_inputs(self):
         self.assertEqual(self.prompt["94"]["inputs"]["target_resolution"], 1024)
         remesh_inputs = self.prompt["241"]["inputs"]
-        self.assertEqual(
-            remesh_inputs["sign_mode"],
-            {"sign_mode": "solid", "fill": 20.0, "qef": False},
-        )
+        self.assertEqual(remesh_inputs["sign_mode"], "solid")
+        self.assertEqual(remesh_inputs["sign_mode.fill"], 20.0)
+        self.assertIs(remesh_inputs["sign_mode.qef"], False)
         self.assertNotIn("qef", remesh_inputs)
         self.assertNotIn("fill", remesh_inputs)
         self.assertEqual(self.prompt["238"]["inputs"]["crease_angle"], 180.0)
