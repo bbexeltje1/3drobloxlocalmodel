@@ -182,6 +182,10 @@ html, body {
   border-left: 1px solid var(--border);
 }
 
+.section-card[hidden] {
+  display: none !important;
+}
+
 .section-card {
   background: var(--bg-card);
   border: 1px solid var(--border);

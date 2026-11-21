@@ -324,9 +324,30 @@ document.getElementById('btn-reset-cam').addEventListener('click', () => {
 // Sliders & Preset Selector
 const selEngine = document.getElementById('sel-engine');
 const comfyUrlWrap = document.getElementById('comfy-url-wrap');
-selEngine.addEventListener('change', () => {
+function updateEngineInputMode() {
+  const idolSingleImage = selEngine.value === 'budget3d_turbo';
   comfyUrlWrap.style.display = selEngine.value === 'comfy_pixal3d' ? 'flex' : 'none';
-});
+  document.querySelectorAll('.view-slot[data-view="left"], .view-slot[data-view="back"], .view-slot[data-view="right"]')
+    .forEach((slot) => { slot.style.display = idolSingleImage ? 'none' : 'flex'; });
+  document.getElementById('view-input-title').textContent = idolSingleImage
+    ? 'Single Image Input (Idol)'
+    : 'Multi-View Inputs (2–4 Angles)';
+  document.getElementById('idol-input-note').hidden = !idolSingleImage;
+  document.getElementById('btn-generate-label').textContent = idolSingleImage
+    ? 'Generate Single-Image Idol Splats'
+    : 'Generate Roblox 3D Asset';
+  document.getElementById('vp-loading-text').textContent = idolSingleImage
+    ? 'Running experimental Budget3D-Idol Turbo single-image generation...'
+    : 'Reconstructing 3D Mesh & Baking SurfaceAppearance PBR...';
+  if (state.currentJob && state.currentJob.output_type === 'gaussian_splat') {
+    document.getElementById('roblox-export-panel').hidden = false;
+    document.getElementById('gaussian-splat-panel').hidden = true;
+    document.getElementById('pbr-maps-panel').hidden = false;
+    document.getElementById('lua-export-panel').hidden = false;
+  }
+}
+selEngine.addEventListener('change', updateEngineInputMode);
+updateEngineInputMode();
 
 const rngTris = document.getElementById('rng-tris');
 const lblTris = document.getElementById('lbl-tris');
@@ -493,6 +514,27 @@ function selectSample(sampleObj, triggerGenerate = false) {
 // Update UI with a completed Job Response
 async function applyJobResult(job) {
   state.currentJob = job;
+  const isSplatOutput = job.output_type === 'gaussian_splat';
+  document.getElementById('roblox-export-panel').hidden = isSplatOutput;
+  document.getElementById('gaussian-splat-panel').hidden = !isSplatOutput;
+  document.getElementById('pbr-maps-panel').hidden = isSplatOutput;
+  document.getElementById('lua-export-panel').hidden = isSplatOutput;
+
+  if (isSplatOutput) {
+    document.getElementById('dl-splat-ply').href = job.splat_url;
+    const timeTag = job.elapsed_sec > 0 ? ` (${job.elapsed_sec}s)` : '';
+    document.getElementById('engine-banner').textContent =
+      `${job.engine_note}${timeTag} The viewport is still showing the previous mesh.`;
+    document.getElementById('hud-tris').textContent = 'N/A — Gaussian PLY';
+    document.getElementById('hud-tri-bar').style.width = '0%';
+    document.getElementById('hud-pass-badge').textContent = 'PLY ONLY';
+    document.getElementById('hud-pass-badge').classList.add('warn');
+    document.getElementById('hud-dims').textContent = 'Not measured';
+    document.getElementById('hud-topo').textContent = 'Gaussian splat; not a Roblox mesh';
+    return;
+  }
+
+  document.getElementById('hud-pass-badge').classList.remove('warn');
   const st = job.stats;
 
   // Update Export Links
@@ -544,14 +586,19 @@ async function runGeneration() {
   const lbl = document.getElementById('btn-generate-label');
   const overlay = document.getElementById('vp-loading');
 
-  const hasUploads = Object.values(state.uploadedFiles).some(Boolean);
+  const idolSingleImage = selEngine.value === 'budget3d_turbo';
+  const hasUploads = idolSingleImage
+    ? Boolean(state.uploadedFiles.front)
+    : Object.values(state.uploadedFiles).some(Boolean);
   if (!hasUploads && !state.selectedSampleId) {
-    alert('Upload 1–4 turnaround images (Front/Left/Back/Right) or click a Sample Sheet first!');
+    alert(idolSingleImage
+      ? 'Upload one image in the Front slot for Budget3D-Idol Turbo.'
+      : 'Upload 1–4 turnaround images (Front/Left/Back/Right) or click a Sample Sheet first!');
     return;
   }
 
   btn.disabled = true;
-  lbl.textContent = 'Generating 3D + PBR...';
+  lbl.textContent = idolSingleImage ? 'Generating Idol Gaussian PLY...' : 'Generating 3D + PBR...';
   overlay.classList.add('visible');
 
   try {
@@ -567,7 +614,8 @@ async function runGeneration() {
     fd.append('roughness_bias', rngRough.value);
 
     if (hasUploads) {
-      ['front', 'left', 'back', 'right'].forEach((v) => {
+      const viewsToSend = idolSingleImage ? ['front'] : ['front', 'left', 'back', 'right'];
+      viewsToSend.forEach((v) => {
         if (state.uploadedFiles[v]) fd.append(v, state.uploadedFiles[v]);
       });
     } else if (state.selectedSampleId) {
@@ -584,7 +632,9 @@ async function runGeneration() {
     alert(`Generation Notice:\n${err.message}`);
   } finally {
     btn.disabled = false;
-    lbl.textContent = 'Generate Roblox 3D Asset';
+    lbl.textContent = selEngine.value === 'budget3d_turbo'
+      ? 'Generate Single-Image Idol Splats'
+      : 'Generate Roblox 3D Asset';
     overlay.classList.remove('visible');
   }
 }

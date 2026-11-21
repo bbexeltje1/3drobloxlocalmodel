@@ -54,7 +54,7 @@
         <!-- 4-View Turnaround Uploader -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">Multi-View Inputs (2&ndash;4 Angles)</span>
+            <span class="section-title" id="view-input-title">Multi-View Inputs (2&ndash;4 Angles)</span>
             <button class="mini-btn" id="btn-clear-views" type="button">Clear Views</button>
           </div>
           <div class="views-grid">
@@ -83,6 +83,9 @@
               <input type="file" accept="image/*" hidden />
             </div>
           </div>
+          <div class="preset-hint" id="idol-input-note" hidden>
+            Budget3D-Idol Turbo uses only this Front image. It creates a Gaussian-splat <code>.PLY</code>, not a Roblox mesh. Experimental on 6 GB VRAM; close ComfyUI first.
+          </div>
         </div>
 
         <!-- Local Engine + Roblox Preset Controls -->
@@ -97,6 +100,7 @@
               <option value="auto">Auto-Detect (Pixal3D-MV &rarr; Hunyuan-2mv &rarr; CPU Sculpt)</option>
               <option value="comfy_pixal3d">ComfyUI: Pixal3D Multi-View (6 GB INT8 / GGUF)</option>
               <option value="hunyuan_mv">Python: Hunyuan3D-2mv Turbo (6 GB FP16)</option>
+              <option value="budget3d_turbo">Budget3D-Idol Turbo: Single Image (experimental Gaussian .PLY)</option>
               <option value="visual_hull">Instant CPU: Multi-View Visual-Hull + PBR (0 GB VRAM)</option>
             </select>
           </div>
@@ -227,7 +231,7 @@
 
       <!-- RIGHT PANEL: SurfaceAppearance PBR Maps & Studio Bundle Export -->
       <aside class="side-panel right">
-        <div class="section-card">
+        <div class="section-card" id="roblox-export-panel">
           <div class="section-header">
             <span class="section-title">1-Click Roblox Studio Export</span>
           </div>
@@ -243,7 +247,19 @@
           </div>
         </div>
 
-        <div class="section-card">
+        <div class="section-card" id="gaussian-splat-panel" hidden>
+          <div class="section-header">
+            <span class="section-title">Budget3D Gaussian Splat Output</span>
+          </div>
+          <a id="dl-splat-ply" class="primary-btn" href="#" download style="text-decoration:none;">
+            Download Gaussian .PLY
+          </a>
+          <div class="preset-hint">
+            This PLY stores 3D Gaussian splats. Roblox Studio does not import it as a MeshPart; no Roblox triangle limit, GLB/OBJ mesh, or SurfaceAppearance maps are produced by this experimental mode.
+          </div>
+        </div>
+
+        <div class="section-card" id="pbr-maps-panel">
           <div class="section-header">
             <span class="section-title">SurfaceAppearance PBR Maps</span>
             <span class="val-pill" id="lbl-map-res">1024&times;1024</span>
@@ -281,7 +297,7 @@
           <div class="preset-hint">Click any texture map to inspect full resolution &amp; download standalone PNG.</div>
         </div>
 
-        <div class="section-card">
+        <div class="section-card" id="lua-export-panel">
           <div class="section-header">
             <span class="section-title">Studio Command Bar Luau</span>
             <button class="mini-btn" id="btn-copy-lua" type="button">Copy Luau</button>

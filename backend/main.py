@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 import shutil
 import time
 import uuid
@@ -27,6 +28,7 @@ from .sample_generator import ensure_sample_sheets_generated, SAMPLE_CATALOG
 from .engines.visual_hull import reconstruct_multiview_visual_hull
 from .engines.comfy_pixal3d import check_comfyui_status, run_comfy_pixal3d_multiview
 from .engines.hunyuan_mv import is_hunyuan_available, run_hunyuan3d_2mv_lowvram
+from .engines.budget3d_idol import run_budget3d_idol_turbo
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
@@ -203,7 +205,11 @@ async def api_generate(
     inputs_dir.mkdir(parents=True, exist_ok=True)
 
     pil_views: Dict[str, Image.Image] = {}
-    uploaded_map = {"front": front, "left": left, "back": back, "right": right}
+    uploaded_map = (
+        {"front": front}
+        if engine == "budget3d_turbo"
+        else {"front": front, "left": left, "back": back, "right": right}
+    )
     for vname, up in uploaded_map.items():
         if up is not None and up.filename:
             raw_bytes = await up.read()
@@ -215,16 +221,19 @@ async def api_generate(
         sdir = SAMPLES_DIR / sample_id
         if not sdir.exists():
             raise HTTPException(status_code=400, detail=f"Unknown sample_id: {sample_id}")
-        for vname in ("front", "left", "back", "right"):
+        sample_views = ("front",) if engine == "budget3d_turbo" else ("front", "left", "back", "right")
+        for vname in sample_views:
             vp = sdir / f"{vname}.png"
             if vp.exists():
                 pil_views[vname] = Image.open(vp).convert("RGBA")
 
     if not pil_views:
-        raise HTTPException(
-            status_code=400,
-            detail="Upload at least 1–4 turnaround views (Front / Left / Back / Right) or pick a Sample Sheet.",
+        detail = (
+            "Budget3D-Idol Turbo needs one image in the Front slot (or choose a sample sheet)."
+            if engine == "budget3d_turbo"
+            else "Upload at least 1–4 turnaround views (Front / Left / Back / Right) or pick a Sample Sheet."
         )
+        raise HTTPException(status_code=400, detail=detail)
 
     # Normalize all supplied views to consistent height-aligned 512x512 RGBA canvases
     norm_views = {}
@@ -281,6 +290,36 @@ async def api_generate(
             else loaded
         )
         engine_note = f"Generated via ComfyUI Pixal3D Multi-View ({status.get('device_name')})."
+
+    elif chosen_engine == "budget3d_turbo":
+        if set(saved_view_paths) != {"front"}:
+            raise HTTPException(
+                status_code=400,
+                detail="Budget3D-Idol Turbo takes exactly one image in the Front slot.",
+            )
+        slug = re.sub(r"[^A-Za-z0-9_-]+", "_", asset_name).strip("_")[:64] or "Budget3D_Idol"
+        splat_path = job_dir / f"{slug}_Budget3D_Idol_Turbo.ply"
+        try:
+            run_budget3d_idol_turbo(
+                image_path=saved_view_paths["front"],
+                output_ply_path=splat_path,
+                seed=seed,
+            )
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return JSONResponse(
+            {
+                "job_id": job_id,
+                "asset_name": slug,
+                "elapsed_sec": round(time.time() - t0, 2),
+                "output_type": "gaussian_splat",
+                "engine_note": (
+                    "Budget3D-Idol Turbo generated a single-image Gaussian-splat PLY at its minimum token budget. "
+                    "This is not a Roblox MeshPart; the viewport remains on the previous mesh."
+                ),
+                "splat_url": f"/outputs/{job_id}/{splat_path.name}",
+            }
+        )
 
     elif chosen_engine == "hunyuan_mv":
         if not is_hunyuan_available():

@@ -53,3 +53,9 @@ Open `http://127.0.0.1:8000` in your browser.
    - **Windows**: `scripts\start_comfyui_6gb.bat`
    - **Linux**: `./scripts/start_comfyui_6gb.sh`
 4. Click **Generate Roblox 3D Asset** in the web app — `Auto` mode will automatically detect ComfyUI on port `8188` and run `Pixal3DMultiViewConditioning`!
+
+### Optional: Budget3D-Idol Turbo single-image experiment
+
+Select **Budget3D-Idol Turbo: Single Image** and upload one object image in the Front slot. Idol is a single-image model; it does not accept the multi-view set. The mode is separate from Roblox mesh generation: its output is a 3D Gaussian-splat `.ply`, not a triangle mesh, and it does not produce Roblox `.glb`/`.obj` or `SurfaceAppearance` maps. Use `scripts\setup_budget3d_windows.bat` to prepare its isolated Python environment. The model needs local DINOv3 / FLUX.2 encoder weights from Hugging Face; if access is gated, accept the terms and authenticate on your PC first.
+
+**6 GB warning:** use this as an experiment only and close ComfyUI before generation. Budget3D-Idol-Turbo's reported optimized peak is 6.0 GB at 10% token budget on an RTX PRO 6000; that is the full VRAM capacity of a 6 GB card, not a safe 6 GB guarantee for a GTX 1660 SUPER. The app selects the minimum 6.25% budget, but an OOM or unsupported fast-attention/BF16 kernel is still possible.
