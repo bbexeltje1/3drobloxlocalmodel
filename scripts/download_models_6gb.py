@@ -7,13 +7,15 @@ Verified exact Hugging Face repository paths (no auth token required):
   - Comfy-Org/Pixal3D  :: vae/trellis_2_shape_vae_bf16.safetensors                    (1.02 GiB)
   - Comfy-Org/Pixal3D  :: vae/trellis_2_texture_vae_bf16.safetensors                  (0.88 GiB)
   - Comfy-Org/BiRefNet :: background_removal/birefnet.safetensors                     (0.41 GiB)
+  - Idol (optional)   :: public Idol + TripoSplat encoder/decoder files for ComfyUI
 
-Downloads directly into <ComfyUI>/models/<subfolder>/ without creating duplicate 8.6 GB cache copies!
+Downloads directly into <ComfyUI>/models/<subfolder>/ without creating duplicate cache copies!
 
 Usage:
   python scripts/download_models_6gb.py --profile pixal3d --comfy-dir "C:/ComfyUI"
   python scripts/download_models_6gb.py --profile pixal3d --gguf --comfy-dir "C:/ComfyUI"
   python scripts/download_models_6gb.py --profile hunyuan
+  python scripts/download_models_6gb.py --profile idol --comfy-dir "C:/ComfyUI"
 """
 
 from __future__ import annotations
@@ -89,6 +91,38 @@ def download_pixal3d(comfy_dir: Path, include_gguf: bool = False) -> None:
     print("========================================================================")
 
 
+def download_comfyui_idol(comfy_dir: Path) -> None:
+    """Install public ComfyUI-Idol model weights directly into ComfyUI's model folders."""
+    from huggingface_hub import hf_hub_download
+
+    models_dir = resolve_comfy_models_dir(comfy_dir)
+    models_dir.mkdir(parents=True, exist_ok=True)
+    targets = [
+        ("nynxz/Idol", "diffusion_models/idol_fp16.safetensors", "0.74 GiB"),
+        ("nynxz/Idol", "vae/idol_decoder_fp16.safetensors", "0.58 GiB"),
+        ("VAST-AI/TripoSplat", "clip_vision/dino_v3_vit_h.safetensors", "1.68 GiB"),
+        ("VAST-AI/TripoSplat", "vae/flux2-vae.safetensors", "0.34 GiB"),
+        ("Comfy-Org/BiRefNet", "background_removal/birefnet.safetensors", "0.44 GiB"),
+    ]
+
+    print(f"[ComfyUI-Idol] Installing public model files in {models_dir}")
+    for index, (repo_id, relative_path, size_label) in enumerate(targets, start=1):
+        target = models_dir / relative_path
+        if target.is_file() and target.stat().st_size > 1_000_000:
+            print(f"  [{index}/{len(targets)}] [SKIP] Already present: {target}")
+            continue
+        print(f"  [{index}/{len(targets)}] [GET ] {repo_id} :: {relative_path} ({size_label})")
+        saved_path = hf_hub_download(
+            repo_id=repo_id,
+            filename=relative_path,
+            local_dir=str(models_dir),
+        )
+        print(f"         [OK  ] Saved -> {saved_path}")
+
+    print("[ComfyUI-Idol] Public weights installed without Hugging Face login or token.")
+    print("[ComfyUI-Idol] Close/restart ComfyUI to reload the custom nodes and model list.")
+
+
 def download_hunyuan_2mv() -> None:
     from huggingface_hub import snapshot_download
 
@@ -108,13 +142,17 @@ def download_hunyuan_2mv() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Download 6 GB VRAM Multi-View 3D models from Hugging Face.")
-    parser.add_argument("--profile", choices=["pixal3d", "hunyuan"], default="pixal3d")
+    parser.add_argument("--profile", choices=["pixal3d", "hunyuan", "idol"], default="pixal3d")
     parser.add_argument("--comfy-dir", type=Path, default=Path("C:/ComfyUI"))
     parser.add_argument("--gguf", action="store_true", help="Also download Aero-Ex/Pixal3D-GGUF Q4_K_M weights")
     args = parser.parse_args()
 
     if args.profile == "pixal3d":
         download_pixal3d(args.comfy_dir.resolve(), include_gguf=args.gguf)
+    elif args.profile == "idol":
+        if args.gguf:
+            parser.error("--gguf applies only to the pixal3d profile")
+        download_comfyui_idol(args.comfy_dir.resolve())
     else:
         download_hunyuan_2mv()
 

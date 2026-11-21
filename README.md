@@ -54,6 +54,20 @@ Open `http://127.0.0.1:8000` in your browser.
    - **Linux**: `./scripts/start_comfyui_6gb.sh`
 4. Click **Generate Roblox 3D Asset** in the web app — `Auto` mode will automatically detect ComfyUI on port `8188` and run `Pixal3DMultiViewConditioning`!
 
+### Optional: ComfyUI-Idol single-image splat + experimental Roblox mesh
+
+Choose **ComfyUI: Idol Single Image** and upload one object image in the Front slot. It uses the local ComfyUI TripoSplat graph and the public ComfyUI-Idol custom nodes. The setup script installs the node pack at a pinned public GitHub revision and downloads only missing public weights directly into ComfyUI's model folders, anonymously (no Hugging Face login/token):
+
+```bat
+scripts\setup_comfyui_idol_windows.bat
+```
+
+Set `COMFYUI_PATH` first if ComfyUI is not in the default `C:\ComfyUI` or `C:\ComfyUI_windows_portable\ComfyUI` location. Restart ComfyUI after setup. The image mode selector should be `Photo / real object` for photos or `Render / generated image` for synthetic images.
+
+Idol's main result remains a Gaussian-splat `.ply`, with a predicted-view preview and 24-frame turntable. This option also asks ComfyUI's stock **Extract Mesh from Splat** node for a conservative 128-grid colored surface, then runs that mesh through RoForge's Roblox decimation, scale, texture and bundle exporter. This conversion is explicitly **best-effort**: splats are not conventional surfaces, so the result can be blobby, incomplete, or empty; hidden-side geometry and color are inferred from a single view. Check the viewport, topology, all sides, and Roblox Studio import before using it. If mesh extraction fails, the PLY and any previews are still provided, but that PLY is not a Roblox MeshPart.
+
+**6 GB warning:** the ComfyUI Idol path has not been validated on a GTX 1660 SUPER. It uses several additional weights (roughly 3.8 GiB total on disk) and can run out of VRAM or take substantially longer on a 6 GB card, especially if other models/apps are loaded. The mesh extraction grid is deliberately kept low to limit VRAM, at the cost of geometric detail. ComfyUI must expose the required TripoSplat, Idol, Render Splat, and Extract Mesh from Splat nodes; the setup script does not silently update ComfyUI itself. If the app reports missing nodes, update ComfyUI, restart it, then retry.
+
 ### Optional: Budget3D-Idol Turbo single-image experiment
 
 Select **Budget3D-Idol Turbo: Single Image** and upload one object image in the Front slot. Idol is a single-image model; it does not accept the multi-view set. The mode is separate from Roblox mesh generation: its output is a 3D Gaussian-splat `.ply`, not a triangle mesh, and it does not produce Roblox `.glb`/`.obj` or `SurfaceAppearance` maps. Use `scripts\setup_budget3d_windows.bat` to prepare its isolated Python environment and download any missing public Turbo, Idol, DINOv3, and FLUX.2-Klein weights. It uses the same unauthenticated download approach as the other model downloads: no Hugging Face login or token is required. Downloads happen once; generation runs locally.

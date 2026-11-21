@@ -29,6 +29,7 @@ from .engines.visual_hull import reconstruct_multiview_visual_hull
 from .engines.comfy_pixal3d import check_comfyui_status, run_comfy_pixal3d_multiview
 from .engines.hunyuan_mv import is_hunyuan_available, run_hunyuan3d_2mv_lowvram
 from .engines.budget3d_idol import run_budget3d_idol_turbo
+from .engines.comfy_idol import run_comfy_idol_single_image
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
@@ -192,6 +193,7 @@ async def api_generate(
     metallic_bias: float = Form(0.35),
     roughness_bias: float = Form(0.50),
     seed: int = Form(42),
+    idol_mode: str = Form("real"),
     front: Optional[UploadFile] = File(None),
     left: Optional[UploadFile] = File(None),
     back: Optional[UploadFile] = File(None),
@@ -205,9 +207,10 @@ async def api_generate(
     inputs_dir.mkdir(parents=True, exist_ok=True)
 
     pil_views: Dict[str, Image.Image] = {}
+    single_image_engine = engine in {"budget3d_turbo", "comfy_idol"}
     uploaded_map = (
         {"front": front}
-        if engine == "budget3d_turbo"
+        if single_image_engine
         else {"front": front, "left": left, "back": back, "right": right}
     )
     for vname, up in uploaded_map.items():
@@ -221,7 +224,7 @@ async def api_generate(
         sdir = SAMPLES_DIR / sample_id
         if not sdir.exists():
             raise HTTPException(status_code=400, detail=f"Unknown sample_id: {sample_id}")
-        sample_views = ("front",) if engine == "budget3d_turbo" else ("front", "left", "back", "right")
+        sample_views = ("front",) if single_image_engine else ("front", "left", "back", "right")
         for vname in sample_views:
             vp = sdir / f"{vname}.png"
             if vp.exists():
@@ -231,11 +234,20 @@ async def api_generate(
         detail = (
             "Budget3D-Idol Turbo needs one image in the Front slot (or choose a sample sheet)."
             if engine == "budget3d_turbo"
+            else "ComfyUI-Idol needs one image in the Front slot (or choose a sample sheet)."
+            if engine == "comfy_idol"
             else "Upload at least 1–4 turnaround views (Front / Left / Back / Right) or pick a Sample Sheet."
         )
         raise HTTPException(status_code=400, detail=detail)
 
-    # Normalize all supplied views to consistent height-aligned 512x512 RGBA canvases
+    # Keep the original-resolution front image for Idol's 1024px preprocessing; the standard
+    # 512px normalized canvas remains the source for the existing Roblox PBR baker.
+    idol_source_path: Optional[Path] = None
+    if engine == "comfy_idol" and "front" in pil_views:
+        idol_source_path = inputs_dir / "front_original.png"
+        pil_views["front"].save(idol_source_path, format="PNG")
+
+    # Normalize supplied views for the standard Roblox pipeline and camera-projected texture baker.
     norm_views = {}
     saved_view_paths: Dict[str, Path] = {}
     for vname, pimg in pil_views.items():
@@ -290,6 +302,84 @@ async def api_generate(
             else loaded
         )
         engine_note = f"Generated via ComfyUI Pixal3D Multi-View ({status.get('device_name')})."
+
+    elif chosen_engine == "comfy_idol":
+        if set(saved_view_paths) != {"front"} or idol_source_path is None:
+            raise HTTPException(
+                status_code=400,
+                detail="ComfyUI-Idol takes exactly one image in the Front slot.",
+            )
+        slug = re.sub(r"[^A-Za-z0-9_-]+", "_", asset_name).strip("_")[:64] or "ComfyUI_Idol"
+        try:
+            idol_result = run_comfy_idol_single_image(
+                image_path=idol_source_path,
+                output_dir=job_dir,
+                asset_prefix=slug,
+                comfy_url=comfy_url,
+                seed=seed,
+                mode=idol_mode,
+                mesh_resolution=128,
+            )
+        except (RuntimeError, TimeoutError, ValueError) as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+        splat_path = idol_result["ply_path"]
+        mesh_path = idol_result.get("mesh_glb_path")
+        artifact_urls = {
+            "splat_url": f"/outputs/{job_id}/{splat_path.name}",
+            "idol_preview_url": (
+                f"/outputs/{job_id}/{idol_result['preview_path'].name}"
+                if idol_result.get("preview_path") else None
+            ),
+            "idol_turntable_url": (
+                f"/outputs/{job_id}/{idol_result['turntable_path'].name}"
+                if idol_result.get("turntable_path") else None
+            ),
+        }
+        if mesh_path is None:
+            note = (
+                "ComfyUI-Idol produced the requested Gaussian PLY and splat previews, but its optional mesh "
+                "extraction did not complete. The PLY is not a Roblox MeshPart."
+            )
+            if idol_result.get("mesh_error"):
+                note += f" Mesh extraction detail: {idol_result['mesh_error']}"
+            return JSONResponse({
+                "job_id": job_id,
+                "asset_name": slug,
+                "elapsed_sec": round(time.time() - t0, 2),
+                "output_type": "gaussian_splat",
+                "engine_note": note,
+                **artifact_urls,
+            })
+
+        try:
+            loaded = trimesh.load(str(mesh_path))
+            raw_mesh = (
+                trimesh.util.concatenate(list(loaded.geometry.values()))
+                if isinstance(loaded, trimesh.Scene)
+                else loaded
+            )
+            if not isinstance(raw_mesh, trimesh.Trimesh) or len(raw_mesh.faces) == 0:
+                raise RuntimeError("Splat extraction returned an empty or unreadable triangle mesh.")
+            existing_maps = extract_pbr_maps_from_glb_scene(loaded, texture_size=texture_size)
+            engine_note = (
+                "ComfyUI-Idol generated a single-image splat; its low-resolution splat-to-mesh extraction is "
+                "best-effort and approximate. Inspect the mesh, topology, and projected single-view textures "
+                "before using it in Roblox."
+            )
+        except Exception as exc:
+            return JSONResponse({
+                "job_id": job_id,
+                "asset_name": slug,
+                "elapsed_sec": round(time.time() - t0, 2),
+                "output_type": "gaussian_splat",
+                "engine_note": (
+                    "ComfyUI-Idol generated the Gaussian PLY, but its best-effort mesh could not be imported; "
+                    "the PLY is not a Roblox MeshPart. Inspect the PLY or retry with more free VRAM."
+                ),
+                "mesh_error": str(exc),
+                **artifact_urls,
+            })
 
     elif chosen_engine == "budget3d_turbo":
         if set(saved_view_paths) != {"front"}:
@@ -363,16 +453,19 @@ async def api_generate(
     )
 
     elapsed = time.time() - t0
-    return JSONResponse(
-        _format_job_response(
-            job_id=job_id,
-            slug=bundle["asset_name"],
-            stats=bundle["stats"],
-            lua_script=bundle["lua_script"],
-            elapsed_sec=elapsed,
-            engine_note=engine_note,
-        )
+    response = _format_job_response(
+        job_id=job_id,
+        slug=bundle["asset_name"],
+        stats=bundle["stats"],
+        lua_script=bundle["lua_script"],
+        elapsed_sec=elapsed,
+        engine_note=engine_note,
     )
+    if chosen_engine == "comfy_idol":
+        response.update(artifact_urls)
+        if idol_result.get("mesh_error"):
+            response["mesh_conversion_warning"] = idol_result["mesh_error"]
+    return JSONResponse(response)
 
 
 @app.post("/api/optimize-mesh")

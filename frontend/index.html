@@ -84,7 +84,7 @@
             </div>
           </div>
           <div class="preset-hint" id="idol-input-note" hidden>
-            Budget3D-Idol Turbo uses only this Front image. It creates a Gaussian-splat <code>.PLY</code>, not a Roblox mesh. Experimental on 6 GB VRAM; close ComfyUI first.
+            Idol options use only this Front image. ComfyUI-Idol attempts a low-resolution splat-to-mesh conversion, but geometry and single-view textures are experimental; inspect before Roblox use. Close ComfyUI before choosing Budget3D-Idol Turbo.
           </div>
         </div>
 
@@ -100,7 +100,8 @@
               <option value="auto">Auto-Detect (Pixal3D-MV &rarr; Hunyuan-2mv &rarr; CPU Sculpt)</option>
               <option value="comfy_pixal3d">ComfyUI: Pixal3D Multi-View (6 GB INT8 / GGUF)</option>
               <option value="hunyuan_mv">Python: Hunyuan3D-2mv Turbo (6 GB FP16)</option>
-              <option value="budget3d_turbo">Budget3D-Idol Turbo: Single Image (experimental Gaussian .PLY)</option>
+              <option value="comfy_idol">ComfyUI: Idol Single Image (PLY + experimental mesh)</option>
+              <option value="budget3d_turbo">Budget3D-Idol Turbo: Single Image (Gaussian .PLY only)</option>
               <option value="visual_hull">Instant CPU: Multi-View Visual-Hull + PBR (0 GB VRAM)</option>
             </select>
           </div>
@@ -108,6 +109,13 @@
           <div class="field" id="comfy-url-wrap" style="display:none;">
             <label for="inp-comfy-url">Local ComfyUI Endpoint (Server-Side Bridge)</label>
             <input type="text" id="inp-comfy-url" value="http://127.0.0.1:8188" />
+          </div>
+          <div class="field" id="idol-mode-wrap" style="display:none;">
+            <label for="sel-idol-mode">Idol Image Type</label>
+            <select id="sel-idol-mode">
+              <option value="real" selected>Photo / real object (recommended for photographs)</option>
+              <option value="synthetic">Render / generated image</option>
+            </select>
           </div>
 
           <div class="field">
@@ -249,14 +257,26 @@
 
         <div class="section-card" id="gaussian-splat-panel" hidden>
           <div class="section-header">
-            <span class="section-title">Budget3D Gaussian Splat Output</span>
+            <span class="section-title" id="splat-output-title">Gaussian Splat Output</span>
           </div>
           <a id="dl-splat-ply" class="primary-btn" href="#" download style="text-decoration:none;">
             Download Gaussian .PLY
           </a>
-          <div class="preset-hint">
-            This PLY stores 3D Gaussian splats. Roblox Studio does not import it as a MeshPart; no Roblox triangle limit, GLB/OBJ mesh, or SurfaceAppearance maps are produced by this experimental mode.
+          <img id="splat-preview-img" alt="Gaussian splat preview" hidden style="width:100%; margin-top:12px; border-radius:8px;" />
+          <a id="dl-splat-turntable" class="secondary-btn" href="#" download hidden style="margin-top:8px; text-decoration:none;">Download Idol Turntable GIF</a>
+          <div class="preset-hint" id="splat-output-note">
+            A Gaussian-splat PLY is not a Roblox MeshPart. No triangle mesh or SurfaceAppearance maps are available from this output.
           </div>
+        </div>
+
+        <div class="section-card" id="idol-artifacts-panel" hidden>
+          <div class="section-header">
+            <span class="section-title">ComfyUI-Idol Splat Preview &amp; Source</span>
+          </div>
+          <a id="dl-idol-ply" class="secondary-btn" href="#" download style="text-decoration:none;">Download Original Idol .PLY</a>
+          <img id="idol-preview-img" alt="Idol render from predicted input camera" style="width:100%; margin-top:10px; border-radius:8px;" />
+          <a id="dl-idol-turntable" class="secondary-btn" href="#" download style="margin-top:8px; text-decoration:none;">Download 24-frame Turntable GIF</a>
+          <div class="preset-hint">Mesh conversion is approximate. The exported Roblox bundle uses single-view color projection; check hidden-side texture and geometry manually.</div>
         </div>
 
         <div class="section-card" id="pbr-maps-panel">
@@ -395,6 +415,15 @@ scripts\start_comfyui_6gb.bat
 
 # Step 3: Launch RoForge 3D Web App (Auto-connects to ComfyUI on port 8188!)
 scripts\start_creator.bat</pre>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <h3 style="font-size:15px;">Optional ComfyUI-Idol Single-Image Mode</h3>
+        </div>
+        <p style="color:var(--text-muted);font-size:12.5px;">
+          From the repository folder, run <code>scripts\setup_comfyui_idol_windows.bat</code> to install the pinned custom node and anonymously download missing public weights. Restart ComfyUI, then select <strong>ComfyUI: Idol Single Image</strong> in the Creator. It outputs a Gaussian PLY, a preview/turntable, and attempts a conservative splat-to-mesh conversion. The conversion and single-image texture projection are experimental, not guaranteed game-ready; a 6 GB GTX 1660 SUPER may OOM. This does not update ComfyUI itself.
+        </p>
       </div>
 
       <div class="section-card">
