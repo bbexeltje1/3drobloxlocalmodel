@@ -286,14 +286,17 @@ async def api_generate(
                 ),
             )
         raw_glb = job_dir / "comfy_raw.glb"
-        run_comfy_pixal3d_multiview(
-            view_images={k: Image.fromarray(v, mode="RGBA") for k, v in norm_views.items()},
-            out_glb_path=raw_glb,
-            comfy_url=comfy_url,
-            target_tris=target_tris,
-            texture_size=texture_size,
-            seed=seed,
-        )
+        try:
+            run_comfy_pixal3d_multiview(
+                view_images={k: Image.fromarray(v, mode="RGBA") for k, v in norm_views.items()},
+                out_glb_path=raw_glb,
+                comfy_url=comfy_url,
+                target_tris=target_tris,
+                texture_size=texture_size,
+                seed=seed,
+            )
+        except (RuntimeError, TimeoutError) as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         loaded = trimesh.load(str(raw_glb))
         existing_maps = extract_pbr_maps_from_glb_scene(loaded, texture_size=texture_size)
         raw_mesh = (

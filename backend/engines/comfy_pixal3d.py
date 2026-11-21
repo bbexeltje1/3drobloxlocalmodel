@@ -279,9 +279,9 @@ def build_pixal3d_mv_api_prompt(
             "inputs": {
                 "mesh": ["92", 0],
                 "resolution": remesh_res,
-                "sign_mode": "solid",
-                "fill": 20.0,
-                "qef": False,
+                # ComfyUI 0.46 defines sign_mode as a DynamicCombo. Its mode-specific
+                # fields must be nested in this value; top-level qef/fill are ignored.
+                "sign_mode": {"sign_mode": "solid", "fill": 20.0, "qef": False},
                 "band": 1,
                 "project_back": 0,
                 "fix_poles": False,
@@ -408,7 +408,12 @@ def run_comfy_pixal3d_multiview(
             f"{base}/prompt",
             json={"prompt": prompt_graph, "client_id": client_id},
         )
-        q_resp.raise_for_status()
+        if q_resp.is_error:
+            try:
+                error_detail = q_resp.json()
+            except ValueError:
+                error_detail = q_resp.text
+            raise RuntimeError(f"ComfyUI rejected the Pixal3D workflow: {error_detail}")
         prompt_id = q_resp.json()["prompt_id"]
 
     # Poll /history/{prompt_id} until Save3DAdvanced finishes
