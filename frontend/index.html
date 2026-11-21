@@ -84,7 +84,7 @@
             </div>
           </div>
           <div class="preset-hint" id="idol-input-note" hidden>
-            Idol options use only this Front image. ComfyUI-Idol attempts a low-resolution splat-to-mesh conversion, but geometry and single-view textures are experimental; inspect before Roblox use. Close ComfyUI before choosing Budget3D-Idol Turbo.
+            ComfyUI-Idol uses only this Front image and returns a Gaussian splat (PLY), preview/turntable, and a best-effort mesh conversion. Mesh geometry and single-view textures are experimental; inspect before Roblox use.
           </div>
         </div>
 
@@ -97,19 +97,10 @@
           <div class="field">
             <label for="sel-engine">Generation Engine (100% Local)</label>
             <select id="sel-engine">
-              <optgroup label="Runnable engines">
-                <option value="auto">Auto-Detect (Pixal3D-MV &rarr; Hunyuan-2mv &rarr; CPU Sculpt)</option>
-                <option value="comfy_pixal3d">ComfyUI: Pixal3D Multi-View (6 GB INT8 / GGUF)</option>
-                <option value="hunyuan_mv">Python: Hunyuan3D-2mv Turbo (6 GB FP16)</option>
-                <option value="visual_hull">Instant CPU: Multi-View Visual-Hull + PBR (0 GB VRAM)</option>
-              </optgroup>
-              <optgroup label="Single-image Idol (experimental)">
-                <option value="comfy_idol">ComfyUI-Idol: Single Image (PLY + experimental mesh)</option>
-                <option value="budget3d_turbo">Budget3D-Idol Turbo: Single Image (Gaussian .PLY only)</option>
-              </optgroup>
-              <optgroup id="catalog-only-engines" label="Research catalog only — not runnable in this build"></optgroup>
+              <option value="comfy_pixal3d">Pixal3D Multi-View — ComfyUI (2–4 images)</option>
+              <option value="comfy_idol">Idol Single-Image — ComfyUI (1 image; experimental mesh)</option>
             </select>
-            <div class="preset-hint">The Idol options are under <strong>Single-image Idol</strong>. Disabled entries below are models in the reference catalog that do not yet have generation backends here.</div>
+            <div class="preset-hint">Only the two supported generation choices are shown: Pixal3D for multi-view input and ComfyUI-Idol for a single image. Pixal3D is the recommended multi-view engine for this app; both require a compatible local ComfyUI workflow.</div>
           </div>
 
           <div class="field" id="comfy-url-wrap" style="display:none;">
