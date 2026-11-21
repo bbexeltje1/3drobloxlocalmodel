@@ -54,9 +54,11 @@ def build_pixal3d_mv_api_prompt(
     back_fn = uploaded_filenames.get("back", front_fn)
     right_fn = uploaded_filenames.get("right", left_fn)
 
-    vox_res = int(voxel_res) if int(voxel_res) in (512, 1024) else 512
-    remesh_res = 384 if vox_res <= 512 else 512
-    crop_res = 512 if vox_res <= 512 else 1024
+    # Current ComfyUI requires Trellis2UpsampleStage.target_resolution >= 1024.
+    # Keep the minimum supported value for the 6 GB VRAM profile.
+    vox_res = 1024
+    remesh_res = 384
+    crop_res = 512
 
     return {
         "15": {
@@ -73,7 +75,7 @@ def build_pixal3d_mv_api_prompt(
         },
         "193": {
             "class_type": "LoadBackgroundRemovalModel",
-            "inputs": {"model_name": "birefnet.safetensors"},
+            "inputs": {"bg_removal_name": "birefnet.safetensors"},
         },
         "319": {
             "class_type": "UNETLoader",
@@ -106,9 +108,9 @@ def build_pixal3d_mv_api_prompt(
                 "masks": ["192", 0],
                 "width": crop_res,
                 "height": crop_res,
-                "scale_by": 1.1,
-                "padding": 0,
-                "bg_color": "#000000",
+                "pad_factor": 1.1,
+                "grow_mask": 0,
+                "background": "#000000",
             },
         },
         "349": {
@@ -118,9 +120,9 @@ def build_pixal3d_mv_api_prompt(
                 "masks": ["348", 0],
                 "width": crop_res,
                 "height": crop_res,
-                "scale_by": 1.1,
-                "padding": 0,
-                "bg_color": "#000000",
+                "pad_factor": 1.1,
+                "grow_mask": 0,
+                "background": "#000000",
             },
         },
         "350": {
@@ -130,9 +132,9 @@ def build_pixal3d_mv_api_prompt(
                 "masks": ["351", 0],
                 "width": crop_res,
                 "height": crop_res,
-                "scale_by": 1.1,
-                "padding": 0,
-                "bg_color": "#000000",
+                "pad_factor": 1.1,
+                "grow_mask": 0,
+                "background": "#000000",
             },
         },
         "352": {
@@ -142,9 +144,9 @@ def build_pixal3d_mv_api_prompt(
                 "masks": ["353", 0],
                 "width": crop_res,
                 "height": crop_res,
-                "scale_by": 1.1,
-                "padding": 0,
-                "bg_color": "#000000",
+                "pad_factor": 1.1,
+                "grow_mask": 0,
+                "background": "#000000",
             },
         },
         "324": {
@@ -278,6 +280,8 @@ def build_pixal3d_mv_api_prompt(
                 "mesh": ["92", 0],
                 "resolution": remesh_res,
                 "sign_mode": "solid",
+                "fill": 20.0,
+                "qef": False,
                 "band": 1,
                 "project_back": 0,
                 "fix_poles": False,
@@ -296,7 +300,7 @@ def build_pixal3d_mv_api_prompt(
         },
         "238": {
             "class_type": "MeshSmoothNormals",
-            "inputs": {"mesh": ["186", 0], "max_angle": 180},
+            "inputs": {"mesh": ["186", 0], "crease_angle": 180.0},
         },
         "196": {
             "class_type": "UnwrapMesh",
@@ -350,7 +354,7 @@ def build_pixal3d_mv_api_prompt(
                 "normal_map": ["224", 0],
             },
         },
-        "260": {"class_type": "MeshSmoothNormals", "inputs": {"mesh": ["210", 0], "max_angle": 180}},
+        "260": {"class_type": "MeshSmoothNormals", "inputs": {"mesh": ["210", 0], "crease_angle": 180.0}},
         "285": {"class_type": "MeshToFile3D", "inputs": {"mesh": ["260", 0]}},
         "372": {
             "class_type": "Save3DAdvanced",

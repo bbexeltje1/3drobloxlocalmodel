@@ -1545,10 +1545,10 @@
         "ver": "0.33.0"
       },
       "widgets_values": [
-        512
+        1024
       ],
       "widgets_values_named": {
-        "target_resolution": 1536
+        "target_resolution": 1024
       }
     },
     {
@@ -1781,7 +1781,7 @@
         20000000
       ],
       "widgets_values_named": {
-        "resolution": 768,
+        "resolution": 384,
         "sign_mode": "solid",
         "sign_mode.fill": 20,
         "sign_mode.qef": false,
@@ -2369,8 +2369,8 @@
         "#000000"
       ],
       "widgets_values_named": {
-        "width": 1024,
-        "height": 1024,
+        "width": 512,
+        "height": 512,
         "pad_factor": 1.1,
         "grow_mask": 0,
         "background": "#000000"
@@ -3160,8 +3160,8 @@
         "#000000"
       ],
       "widgets_values_named": {
-        "width": 1024,
-        "height": 1024,
+        "width": 512,
+        "height": 512,
         "pad_factor": 1.1,
         "grow_mask": 0,
         "background": "#000000"
@@ -3215,8 +3215,8 @@
         "#000000"
       ],
       "widgets_values_named": {
-        "width": 1024,
-        "height": 1024,
+        "width": 512,
+        "height": 512,
         "pad_factor": 1.1,
         "grow_mask": 0,
         "background": "#000000"
@@ -3313,8 +3313,8 @@
         "#000000"
       ],
       "widgets_values_named": {
-        "width": 1024,
-        "height": 1024,
+        "width": 512,
+        "height": 512,
         "pad_factor": 1.1,
         "grow_mask": 0,
         "background": "#000000"
