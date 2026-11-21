@@ -328,6 +328,7 @@ function updateEngineInputMode() {
   const singleImage = ['budget3d_turbo', 'comfy_idol'].includes(selEngine.value);
   const comfyEngine = ['comfy_pixal3d', 'comfy_idol'].includes(selEngine.value);
   const comfyIdol = selEngine.value === 'comfy_idol';
+  const comfyPixal = selEngine.value === 'comfy_pixal3d';
   comfyUrlWrap.style.display = comfyEngine ? 'flex' : 'none';
   document.getElementById('idol-mode-wrap').style.display = comfyIdol ? 'flex' : 'none';
   document.querySelectorAll('.view-slot[data-view="left"], .view-slot[data-view="back"], .view-slot[data-view="right"]')
@@ -340,10 +341,12 @@ function updateEngineInputMode() {
     ? (comfyIdol ? 'Generate Idol Splat + Best-Effort Roblox Mesh' : 'Generate Single-Image Idol Splats')
     : 'Generate Roblox 3D Asset';
   document.getElementById('vp-loading-text').textContent = comfyIdol
-    ? 'Running ComfyUI-Idol, splat preview and experimental mesh extraction...'
-    : (singleImage
-      ? 'Running experimental Budget3D-Idol Turbo single-image generation...'
-      : 'Reconstructing 3D Mesh & Baking SurfaceAppearance PBR...');
+    ? 'Starting local ComfyUI if needed, then running Idol and collecting its artifacts...'
+    : (comfyPixal
+      ? 'Starting local ComfyUI if needed, then running Pixal3D... This may take a while.'
+      : (singleImage
+        ? 'Running experimental Budget3D-Idol Turbo single-image generation...'
+        : 'Reconstructing 3D Mesh & Baking SurfaceAppearance PBR...'));
   if (state.currentJob) {
     const isSplatOnly = state.currentJob.output_type === 'gaussian_splat';
     document.getElementById('roblox-export-panel').hidden = isSplatOnly;

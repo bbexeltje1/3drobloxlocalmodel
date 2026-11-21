@@ -404,13 +404,12 @@
         <pre class="code-block"># Step 1: Download MIT-licensed Comfy-Org/Pixal3D INT8 + VAEs + BiRefNet (plus optional Q4_K_M GGUF)
 python scripts/download_models_6gb.py --profile pixal3d --comfy-dir "C:/ComfyUI"
 
-# Step 2: Launch ComfyUI (&gt;= 0.33.0) with our 6 GB VRAM + 32 GB RAM Offload Launcher
-# Windows:
-scripts\start_comfyui_6gb.bat
-# Linux:
-./scripts/start_comfyui_6gb.sh
+# Optional: launch ComfyUI manually to inspect its logs or keep it warm
+# Windows: scripts\start_comfyui_6gb.bat
+# Linux:   ./scripts/start_comfyui_6gb.sh
 
-# Step 3: Launch RoForge 3D Web App (Auto-connects to ComfyUI on port 8188!)
+# Launch RoForge. Generate starts default local ComfyUI if needed,
+# submits the workflow through its API, and shows results back in RoForge.
 scripts\start_creator.bat</pre>
       </div>
 

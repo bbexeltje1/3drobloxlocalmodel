@@ -14,6 +14,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from PIL import Image
 import psutil
 import trimesh
@@ -27,6 +28,7 @@ from .roblox_pipeline import (
 from .sample_generator import ensure_sample_sheets_generated, SAMPLE_CATALOG
 from .engines.visual_hull import reconstruct_multiview_visual_hull
 from .engines.comfy_pixal3d import check_comfyui_status, run_comfy_pixal3d_multiview
+from .engines.comfy_service import ensure_comfyui_ready
 from .engines.hunyuan_mv import is_hunyuan_available, run_hunyuan3d_2mv_lowvram
 from .engines.budget3d_idol import run_budget3d_idol_turbo
 from .engines.comfy_idol import run_comfy_idol_single_image
@@ -274,17 +276,26 @@ async def api_generate(
                 "Start ComfyUI with start_comfyui_6gb.bat to switch to Pixal3D Multi-View AI!"
             )
 
-    existing_maps = None
-    if chosen_engine == "comfy_pixal3d":
-        status = check_comfyui_status(comfy_url=comfy_url)
-        if not status["online"]:
+    comfy_status = None
+    if chosen_engine in {"comfy_pixal3d", "comfy_idol"}:
+        try:
+            comfy_status = await run_in_threadpool(
+                ensure_comfyui_ready, comfy_url=comfy_url, repo_root=ROOT_DIR
+            )
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        if not comfy_status.get("online"):
             raise HTTPException(
                 status_code=503,
                 detail=(
-                    f"Local ComfyUI not reachable at {comfy_url}. "
-                    "Launch ComfyUI using scripts/start_comfyui_6gb.bat (.sh) or switch Engine to Auto / Visual-Hull."
+                    f"ComfyUI is not reachable at {comfy_url}. For the local default endpoint, "
+                    "RoForge tries to start ComfyUI automatically; check the ComfyUI console or endpoint setting."
                 ),
             )
+
+    existing_maps = None
+    if chosen_engine == "comfy_pixal3d":
+        status = comfy_status or {}
         raw_glb = job_dir / "comfy_raw.glb"
         try:
             run_comfy_pixal3d_multiview(

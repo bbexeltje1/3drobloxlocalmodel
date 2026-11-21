@@ -49,10 +49,7 @@ Open `http://127.0.0.1:8000` in your browser.
    python scripts/download_models_6gb.py --profile pixal3d --comfy-dir "C:/ComfyUI"
    ```
    *(Optional ultra-low VRAM Q4_K_M GGUF weights: add `--gguf` and install `Aero-Ex/ComfyUI-Trellis2-GGUF`)*
-3. Launch ComfyUI using our **6 GB VRAM + 32 GB RAM launcher**:
-   - **Windows**: `scripts\start_comfyui_6gb.bat`
-   - **Linux**: `./scripts/start_comfyui_6gb.sh`
-4. Click **Generate Roblox 3D Asset** in the web app — `Auto` mode will automatically detect ComfyUI on port `8188` and run `Pixal3DMultiViewConditioning`!
+3. Launch RoForge with `scripts\start_creator.bat` (Windows) or the normal Linux command above. When you click Generate with Pixal3D or Idol selected, RoForge starts the local ComfyUI launcher if the default local endpoint is not already running, waits up to five minutes for it, and submits the selected graph through ComfyUI's API. A ComfyUI browser tab is not required; the workflow runs through the API and its results return to RoForge. You can still run `scripts\start_comfyui_6gb.bat` (Windows) or `./scripts/start_comfyui_6gb.sh` manually to inspect startup logs or keep ComfyUI warm.
 
 ### Optional: ComfyUI-Idol single-image splat + experimental Roblox mesh
 

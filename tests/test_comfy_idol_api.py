@@ -49,6 +49,7 @@ class ComfyIdolApiTests(unittest.TestCase):
         with (
             patch.object(app_module, "OUTPUTS_DIR", self.output_dir),
             patch.object(app_module, "_ensure_initial_demo", return_value={}),
+            patch.object(app_module, "ensure_comfyui_ready", return_value={"online": True, "device_name": "Test GPU"}),
             patch.object(app_module, "run_comfy_idol_single_image", return_value=result) as run_idol,
             patch.object(app_module, "export_complete_roblox_bundle", side_effect=self._bundle_stub),
             TestClient(app_module.app) as client,
@@ -79,6 +80,7 @@ class ComfyIdolApiTests(unittest.TestCase):
         with (
             patch.object(app_module, "OUTPUTS_DIR", self.output_dir),
             patch.object(app_module, "_ensure_initial_demo", return_value={}),
+            patch.object(app_module, "ensure_comfyui_ready", return_value={"online": True, "device_name": "Test GPU"}),
             patch.object(app_module, "run_comfy_idol_single_image", return_value=result),
             patch.object(app_module, "export_complete_roblox_bundle") as export_bundle,
             TestClient(app_module.app) as client,
