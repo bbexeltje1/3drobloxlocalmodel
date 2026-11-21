@@ -11,4 +11,4 @@ fast-simplification>=0.1.7
 pygltflib>=1.16.0
 httpx>=0.27.0
 psutil>=6.0.0
-huggingface_hub>=0.25.0
+huggingface_hub>=1.5.0,<2.0

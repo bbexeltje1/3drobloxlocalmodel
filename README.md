@@ -56,7 +56,7 @@ Open `http://127.0.0.1:8000` in your browser.
 
 ### Optional: ComfyUI-Idol single-image splat + experimental Roblox mesh
 
-Choose **ComfyUI: Idol Single Image** and upload one object image in the Front slot. It uses the local ComfyUI TripoSplat graph and the public ComfyUI-Idol custom nodes. The setup script installs the node pack at a pinned public GitHub revision and downloads only missing public weights directly into ComfyUI's model folders, anonymously (no Hugging Face login/token):
+Choose **ComfyUI: Idol Single Image** and upload one object image in the Front slot. It uses the local ComfyUI TripoSplat graph and the public ComfyUI-Idol custom nodes. The setup script installs the node pack at a pinned public GitHub revision and downloads only missing public weights directly into ComfyUI's model folders, anonymously (no Hugging Face login/token). Downloads use a temporary isolated Python environment, so they do not change ComfyUI's Transformers dependencies:
 
 ```bat
 scripts\setup_comfyui_idol_windows.bat

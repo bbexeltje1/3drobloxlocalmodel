@@ -42,11 +42,18 @@ if not exist "%IDOL_NODE%\.git" (
 git -C "%IDOL_NODE%" fetch --depth 1 origin "%IDOL_NODE_COMMIT%" || (pause & exit /b 1)
 git -C "%IDOL_NODE%" checkout --detach "%IDOL_NODE_COMMIT%" || (pause & exit /b 1)
 
-python -m pip install --upgrade huggingface_hub || (pause & exit /b 1)
-python "%~dp0download_models_6gb.py" --profile idol --comfy-dir "%COMFYUI_PATH%" || (pause & exit /b 1)
+REM Use a private temporary Python environment for downloading so Hugging Face Hub
+REM cannot upgrade/downgrade the transformers stack used by ComfyUI's Python.
+set "HF_SETUP_VENV=%TEMP%\RoForge3D_HF_Download_Venv"
+if not exist "%HF_SETUP_VENV%\Scripts\python.exe" (
+    python -m venv "%HF_SETUP_VENV%" || (pause & exit /b 1)
+)
+"%HF_SETUP_VENV%\Scripts\python.exe" -m pip install --upgrade "huggingface_hub>=1.5.0,<2.0" || (pause & exit /b 1)
+"%HF_SETUP_VENV%\Scripts\python.exe" "%~dp0download_models_6gb.py" --profile idol --comfy-dir "%COMFYUI_PATH%" || (pause & exit /b 1)
 
 echo.
 echo [ComfyUI-Idol] Setup complete. Models were downloaded anonymously; no HF account or token was used.
+echo The downloader used a temporary Python environment and did not modify ComfyUI's Transformers packages.
 echo Restart ComfyUI before selecting ComfyUI Idol in RoForge.
 echo Idol returns a Gaussian PLY. Mesh extraction is best-effort and may be rough or fail on 6 GB VRAM.
 echo This installer does not upgrade ComfyUI; if the custom nodes are missing, update ComfyUI manually first.
