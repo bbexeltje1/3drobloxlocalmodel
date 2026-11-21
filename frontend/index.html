@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RoForge 3D — Local Multi-View Roblox 3D Asset Creator (6 GB VRAM)</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- Studio Header -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-cube" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06121d" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">
+          RoForge 3D
+          <span class="tag-6gb">6 GB VRAM + 32 GB RAM</span>
+        </div>
+        <div class="brand-sub">Local Multi-View Hugging Face 3D &rarr; Roblox MeshPart + SurfaceAppearance PBR</div>
+      </div>
+    </div>
+
+    <nav class="nav-tabs" role="tablist">
+      <button class="nav-tab active" data-tab="creator">1. Multi-View Creator</button>
+      <button class="nav-tab" data-tab="optimizer">2. GLB / OBJ Decimator &amp; PBR Splitter</button>
+      <button class="nav-tab" data-tab="setup">3. 6 GB VRAM Setup &amp; HF Models</button>
+    </nav>
+
+    <div class="hw-status" id="hw-status-pill" title="Detected Local Hardware & Engine State">
+      <span class="status-dot" id="hw-dot"></span>
+      <span id="hw-status-text">Probing local environment...</span>
+    </div>
+  </header>
+
+  <!-- TAB 1: MULTI-VIEW CREATOR STUDIO -->
+  <main class="tab-view active" id="tab-creator">
+    <div class="studio-grid">
+      <!-- LEFT PANEL: Multi-View Inputs & Roblox Presets -->
+      <aside class="side-panel left">
+        <!-- Sample Turnaround Sheets -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">Quick-Load 4-View Sample Sheets</span>
+          </div>
+          <div class="sample-grid" id="sample-grid"></div>
+        </div>
+
+        <!-- 4-View Turnaround Uploader -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">Multi-View Inputs (2&ndash;4 Angles)</span>
+            <button class="mini-btn" id="btn-clear-views" type="button">Clear Views</button>
+          </div>
+          <div class="views-grid">
+            <div class="view-slot" data-view="front">
+              <span class="view-label">FRONT (+Z)</span>
+              <button class="view-clear" type="button" title="Remove view">&times;</button>
+              <div class="view-placeholder">Drop or click<br/>Front PNG/JPG</div>
+              <input type="file" accept="image/*" hidden />
+            </div>
+            <div class="view-slot" data-view="left">
+              <span class="view-label">LEFT (-X)</span>
+              <button class="view-clear" type="button" title="Remove view">&times;</button>
+              <div class="view-placeholder">Drop or click<br/>Left PNG/JPG</div>
+              <input type="file" accept="image/*" hidden />
+            </div>
+            <div class="view-slot" data-view="back">
+              <span class="view-label">BACK (-Z)</span>
+              <button class="view-clear" type="button" title="Remove view">&times;</button>
+              <div class="view-placeholder">Drop or click<br/>Back PNG/JPG</div>
+              <input type="file" accept="image/*" hidden />
+            </div>
+            <div class="view-slot" data-view="right">
+              <span class="view-label">RIGHT (+X)</span>
+              <button class="view-clear" type="button" title="Remove view">&times;</button>
+              <div class="view-placeholder">Drop or click<br/>Right PNG/JPG</div>
+              <input type="file" accept="image/*" hidden />
+            </div>
+          </div>
+        </div>
+
+        <!-- Local Engine + Roblox Preset Controls -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">Local 3D Engine &amp; Roblox Budget</span>
+          </div>
+
+          <div class="field">
+            <label for="sel-engine">Generation Engine (100% Local)</label>
+            <select id="sel-engine">
+              <option value="auto">Auto-Detect (Pixal3D-MV &rarr; Hunyuan-2mv &rarr; CPU Sculpt)</option>
+              <option value="comfy_pixal3d">ComfyUI: Pixal3D Multi-View (6 GB INT8 / GGUF)</option>
+              <option value="hunyuan_mv">Python: Hunyuan3D-2mv Turbo (6 GB FP16)</option>
+              <option value="visual_hull">Instant CPU: Multi-View Visual-Hull + PBR (0 GB VRAM)</option>
+            </select>
+          </div>
+
+          <div class="field" id="comfy-url-wrap" style="display:none;">
+            <label for="inp-comfy-url">Local ComfyUI Endpoint (Server-Side Bridge)</label>
+            <input type="text" id="inp-comfy-url" value="http://127.0.0.1:8188" />
+          </div>
+
+          <div class="field">
+            <label for="inp-asset-name">Roblox MeshPart Name</label>
+            <input type="text" id="inp-asset-name" value="Crimson_Dragon_Helm" />
+          </div>
+
+          <div class="field">
+            <label for="sel-preset">Roblox Studio Target Preset</label>
+            <select id="sel-preset">
+              <option value="ugc_hat">UGC Rigid Accessory &mdash; 3,600 Tris (&le;4K Cap)</option>
+              <option value="map_prop">Repeated Map Prop &mdash; 2,400 Tris</option>
+              <option value="weapon_tool">Weapon / Held Tool &mdash; 7,500 Tris</option>
+              <option value="hero_meshpart">Hero MeshPart / Boss &mdash; 15,000 Tris (&lt;21K Wall)</option>
+            </select>
+            <div class="preset-hint" id="preset-hint">Strict &le;4,000 triangle budget required for Roblox Marketplace rigid UGC accessories.</div>
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="rng-tris">QEM Target Triangles</label>
+              <span class="val-pill" id="lbl-tris">3,600 tris</span>
+            </div>
+            <input type="range" id="rng-tris" min="400" max="20500" step="100" value="3600" />
+          </div>
+
+          <div class="two-col">
+            <div class="field">
+              <div class="field-row">
+                <label for="rng-studs">Scale (Studs)</label>
+                <span class="val-pill" id="lbl-studs">2.2 st</span>
+              </div>
+              <input type="range" id="rng-studs" min="0.5" max="20.0" step="0.1" value="2.2" />
+            </div>
+
+            <div class="field">
+              <label for="sel-texsize">PBR Resolution</label>
+              <select id="sel-texsize">
+                <option value="512">512 &times; 512</option>
+                <option value="1024" selected>1024 &times; 1024 (Rec)</option>
+                <option value="2048">2048 &times; 2048</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <div class="field">
+              <div class="field-row">
+                <label for="rng-metal">Metalness Bias</label>
+                <span class="val-pill" id="lbl-metal">0.62</span>
+              </div>
+              <input type="range" id="rng-metal" min="0.0" max="0.95" step="0.02" value="0.62" />
+            </div>
+            <div class="field">
+              <div class="field-row">
+                <label for="rng-rough">Roughness Bias</label>
+                <span class="val-pill" id="lbl-rough">0.35</span>
+              </div>
+              <input type="range" id="rng-rough" min="0.08" max="0.95" step="0.02" value="0.35" />
+            </div>
+          </div>
+
+          <button class="primary-btn" id="btn-generate" type="button">
+            <span id="btn-generate-label">Generate Roblox 3D Asset</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- CENTER: Interactive Three.js Roblox Baseplate Viewport -->
+      <section class="viewport-stage">
+        <div class="viewport-toolbar">
+          <div class="toolbar-group" id="shading-group">
+            <button class="vp-btn active" data-shade="pbr" type="button">SurfaceAppearance PBR</button>
+            <button class="vp-btn" data-shade="albedo" type="button">ColorMap</button>
+            <button class="vp-btn" data-shade="normal" type="button">NormalMap</button>
+            <button class="vp-btn" data-shade="roughmetal" type="button">Metal / Rough</button>
+            <button class="vp-btn" data-shade="clay" type="button">Clay Mesh</button>
+          </div>
+          <div class="toolbar-group">
+            <button class="vp-btn" id="btn-wireframe" type="button">Wireframe</button>
+            <button class="vp-btn active" id="btn-turntable" type="button">Turntable</button>
+            <button class="vp-btn" id="btn-r15-dummy" type="button" title="Toggle 5-Stud Roblox R15 Character Scale Reference">5-Stud R15 Scale</button>
+            <button class="vp-btn" id="btn-reset-cam" type="button">Reset Cam</button>
+          </div>
+        </div>
+
+        <div class="engine-banner" id="engine-banner">
+          Ready &mdash; Inspecting starter asset on 1-Stud Roblox Baseplate Grid (1 stud = 0.28 m).
+        </div>
+
+        <div id="three-container"></div>
+
+        <div class="loading-overlay" id="vp-loading">
+          <div class="spinner"></div>
+          <div id="vp-loading-text" style="font-weight:600;color:#eef2ff;">Reconstructing 3D Mesh &amp; Baking SurfaceAppearance PBR...</div>
+        </div>
+
+        <!-- Bottom Roblox Studio Compliance Bar -->
+        <div class="compliance-hud">
+          <div class="tri-meter-wrap">
+            <div class="tri-meter-top">
+              <span>Roblox Triangle Budget: <strong id="hud-tris">3,600 / 4,000</strong></span>
+              <span class="pass-badge" id="hud-pass-badge">STUDIO PASS</span>
+            </div>
+            <div class="tri-bar-bg">
+              <div class="tri-bar-fill" id="hud-tri-bar"></div>
+            </div>
+          </div>
+
+          <div class="hud-stat">
+            <span class="hud-stat-label">Roblox Stud Dimensions (X &times; Y &times; Z)</span>
+            <span class="hud-stat-val" id="hud-dims">2.18 &times; 1.81 &times; 2.20 studs</span>
+          </div>
+
+          <div class="hud-stat">
+            <span class="hud-stat-label">Topology &amp; PBR Maps</span>
+            <span class="hud-stat-val" id="hud-topo">Watertight &bull; 4&times; 1024px PNG</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL: SurfaceAppearance PBR Maps & Studio Bundle Export -->
+      <aside class="side-panel right">
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">1-Click Roblox Studio Export</span>
+          </div>
+          <a id="dl-zip" class="primary-btn" href="#" download style="text-decoration:none;">
+            Download Roblox .ZIP Bundle
+          </a>
+          <div class="two-col">
+            <a id="dl-glb" class="secondary-btn" href="#" download>Download .GLB</a>
+            <a id="dl-obj" class="secondary-btn" href="#" download>Download .OBJ</a>
+          </div>
+          <div class="preset-hint">
+            Bundle contains decimated <code>.glb</code>, <code>.obj</code>, all 4 unpacked <code>SurfaceAppearance/*.png</code> textures, and <code>setup_surface_appearance.lua</code>.
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">SurfaceAppearance PBR Maps</span>
+            <span class="val-pill" id="lbl-map-res">1024&times;1024</span>
+          </div>
+          <div class="pbr-grid">
+            <div class="pbr-card" data-map="ColorMap">
+              <img id="img-ColorMap" alt="ColorMap" src="" />
+              <div class="pbr-card-foot">
+                <span class="pbr-name">ColorMap</span>
+                <span class="pbr-chan">RGB</span>
+              </div>
+            </div>
+            <div class="pbr-card" data-map="NormalMap">
+              <img id="img-NormalMap" alt="NormalMap" src="" />
+              <div class="pbr-card-foot">
+                <span class="pbr-name">NormalMap</span>
+                <span class="pbr-chan">GL +Y</span>
+              </div>
+            </div>
+            <div class="pbr-card" data-map="MetalnessMap">
+              <img id="img-MetalnessMap" alt="MetalnessMap" src="" />
+              <div class="pbr-card-foot">
+                <span class="pbr-name">Metalness</span>
+                <span class="pbr-chan">Unpacked B</span>
+              </div>
+            </div>
+            <div class="pbr-card" data-map="RoughnessMap">
+              <img id="img-RoughnessMap" alt="RoughnessMap" src="" />
+              <div class="pbr-card-foot">
+                <span class="pbr-name">Roughness</span>
+                <span class="pbr-chan">Unpacked G</span>
+              </div>
+            </div>
+          </div>
+          <div class="preset-hint">Click any texture map to inspect full resolution &amp; download standalone PNG.</div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">Studio Command Bar Luau</span>
+            <button class="mini-btn" id="btn-copy-lua" type="button">Copy Luau</button>
+          </div>
+          <pre class="lua-box" id="lua-code-box">-- Loading Luau setup script...</pre>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- TAB 2: EXISTING GLB / OBJ OPTIMIZER & PBR SPLITTER -->
+  <section class="tab-view" id="tab-optimizer">
+    <div class="page-scroll">
+      <div class="section-card">
+        <h2 style="font-size:17px;">Raw AI Mesh (.GLB / .OBJ) &rarr; Roblox Studio Decimator &amp; SurfaceAppearance Unpacker</h2>
+        <p style="color:var(--text-muted);font-size:12.5px;">
+          Already generated a 500,000-triangle <code>.glb</code> in ComfyUI (<code>Pixal3D</code> / <code>TRELLIS.2-GGUF</code> / <code>Hunyuan3D-2mv</code>) or Blender?
+          Drop it here to run Garland-Heckbert QEM decimation under Roblox's 21,000-triangle ceiling and automatically split glTF's packed
+          <code>metallicRoughnessTexture</code> into standalone <code>ColorMap.png</code>, <code>NormalMap.png</code>, <code>MetalnessMap.png</code>, and <code>RoughnessMap.png</code>!
+        </p>
+      </div>
+
+      <div class="opt-layout">
+        <div class="section-card">
+          <div class="drop-giant" id="opt-dropzone">
+            <div style="font-size:14px;font-weight:700;margin-bottom:4px;" id="opt-file-label">Drop .GLB / .OBJ / .PLY File Here</div>
+            <div style="color:var(--text-muted);font-size:12px;">or click to browse local 3D mesh</div>
+            <input type="file" id="opt-file-input" accept=".glb,.gltf,.obj,.ply,.stl" hidden />
+          </div>
+
+          <div class="field">
+            <label for="opt-name">Output Roblox Asset Name</label>
+            <input type="text" id="opt-name" value="Optimized_MeshPart" />
+          </div>
+
+          <div class="field">
+            <label for="opt-preset">Roblox Target Preset</label>
+            <select id="opt-preset">
+              <option value="ugc_hat">UGC Rigid Accessory &mdash; 3,600 Tris (&le;4K)</option>
+              <option value="map_prop">Repeated Map Prop &mdash; 2,400 Tris</option>
+              <option value="weapon_tool" selected>Weapon / Held Tool &mdash; 7,500 Tris</option>
+              <option value="hero_meshpart">Hero MeshPart &mdash; 15,000 Tris (&lt;21K)</option>
+            </select>
+          </div>
+
+          <div class="two-col">
+            <div class="field">
+              <label for="opt-tris">Max Triangles</label>
+              <input type="number" id="opt-tris" value="7500" min="300" max="20800" />
+            </div>
+            <div class="field">
+              <label for="opt-studs">Scale (Studs)</label>
+              <input type="number" id="opt-studs" value="4.2" min="0.5" max="50" step="0.1" />
+            </div>
+          </div>
+
+          <button class="primary-btn" id="btn-run-optimize" type="button">
+            Decimate &amp; Split SurfaceAppearance PBR
+          </button>
+        </div>
+
+        <div class="section-card" id="opt-result-card">
+          <div class="section-title">Optimizer Output</div>
+          <p style="color:var(--text-muted);font-size:12.5px;" id="opt-status-msg">
+            Upload any <code>.glb</code> or <code>.obj</code> on the left (or test with a generated GLB!) — once processed, it automatically loads into the <strong>1. Multi-View Creator</strong> 3D Viewport and Export Panel.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: 6 GB VRAM + 32 GB RAM SETUP & VERIFIED HF MODEL CATALOG -->
+  <section class="tab-view" id="tab-setup">
+    <div class="page-scroll">
+      <div class="section-card">
+        <div class="section-header">
+          <h2 style="font-size:17px;">6 GB VRAM + 32 GB System RAM Local Setup Guide &amp; ComfyUI Workflow</h2>
+          <a class="secondary-btn" href="/api/workflow-json" download style="width:auto;padding:7px 14px;">
+            Download ComfyUI 6GB Workflow (.JSON)
+          </a>
+        </div>
+        <p style="color:var(--text-muted);font-size:12.5px;">
+          Your <strong>32 GB System RAM</strong> is a superpower on a <strong>6 GB GPU</strong>: <code>Pixal3D Multi-View</code> caches ~12 GiB of multi-view DINOv3 NAF features during conditioning.
+          Passing <code>--lowvram --disable-pinned-memory --reserve-vram 1.0 --cache-none</code> keeps active GPU memory at <strong>~5.5&ndash;5.9 GB VRAM</strong> while streaming the 12 GiB cache cleanly from your 32 GB RAM without triggering CUDA pinned-memory crashes!
+        </p>
+
+        <pre class="code-block"># Step 1: Download MIT-licensed Comfy-Org/Pixal3D INT8 + VAEs + BiRefNet (plus optional Q4_K_M GGUF)
+python scripts/download_models_6gb.py --profile pixal3d --comfy-dir "C:/ComfyUI"
+
+# Step 2: Launch ComfyUI (&gt;= 0.33.0) with our 6 GB VRAM + 32 GB RAM Offload Launcher
+# Windows:
+scripts\start_comfyui_6gb.bat
+# Linux:
+./scripts/start_comfyui_6gb.sh
+
+# Step 3: Launch RoForge 3D Web App (Auto-connects to ComfyUI on port 8188!)
+scripts\start_creator.bat</pre>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <h3 style="font-size:15px;">Verified Hugging Face Multi-View 3D Models Fitting 6 GB VRAM + 32 GB RAM</h3>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="model-table">
+            <thead>
+              <tr>
+                <th>Rank &amp; Model</th>
+                <th>HF Repositories</th>
+                <th>Release Date</th>
+                <th>Downloads (30d / Total)</th>
+                <th>6 GB VRAM + 32 GB RAM Fit</th>
+                <th>Native PBR &amp; License</th>
+              </tr>
+            </thead>
+            <tbody id="hf-models-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Texture Map Lightbox Modal -->
+  <div class="modal-backdrop" id="map-modal">
+    <div class="modal-card">
+      <div class="section-header">
+        <strong id="modal-map-title">SurfaceAppearance Map</strong>
+        <div style="display:flex;gap:8px;">
+          <a id="modal-map-dl" class="mini-btn" href="#" download style="text-decoration:none;">Download PNG</a>
+          <button class="mini-btn" id="modal-close" type="button">Close</button>
+        </div>
+      </div>
+      <img id="modal-map-img" src="" alt="PBR Texture Preview" />
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
