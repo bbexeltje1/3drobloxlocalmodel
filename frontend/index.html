@@ -97,13 +97,19 @@
           <div class="field">
             <label for="sel-engine">Generation Engine (100% Local)</label>
             <select id="sel-engine">
-              <option value="auto">Auto-Detect (Pixal3D-MV &rarr; Hunyuan-2mv &rarr; CPU Sculpt)</option>
-              <option value="comfy_pixal3d">ComfyUI: Pixal3D Multi-View (6 GB INT8 / GGUF)</option>
-              <option value="hunyuan_mv">Python: Hunyuan3D-2mv Turbo (6 GB FP16)</option>
-              <option value="comfy_idol">ComfyUI: Idol Single Image (PLY + experimental mesh)</option>
-              <option value="budget3d_turbo">Budget3D-Idol Turbo: Single Image (Gaussian .PLY only)</option>
-              <option value="visual_hull">Instant CPU: Multi-View Visual-Hull + PBR (0 GB VRAM)</option>
+              <optgroup label="Runnable engines">
+                <option value="auto">Auto-Detect (Pixal3D-MV &rarr; Hunyuan-2mv &rarr; CPU Sculpt)</option>
+                <option value="comfy_pixal3d">ComfyUI: Pixal3D Multi-View (6 GB INT8 / GGUF)</option>
+                <option value="hunyuan_mv">Python: Hunyuan3D-2mv Turbo (6 GB FP16)</option>
+                <option value="visual_hull">Instant CPU: Multi-View Visual-Hull + PBR (0 GB VRAM)</option>
+              </optgroup>
+              <optgroup label="Single-image Idol (experimental)">
+                <option value="comfy_idol">ComfyUI-Idol: Single Image (PLY + experimental mesh)</option>
+                <option value="budget3d_turbo">Budget3D-Idol Turbo: Single Image (Gaussian .PLY only)</option>
+              </optgroup>
+              <optgroup id="catalog-only-engines" label="Research catalog only — not runnable in this build"></optgroup>
             </select>
+            <div class="preset-hint">The Idol options are under <strong>Single-image Idol</strong>. Disabled entries below are models in the reference catalog that do not yet have generation backends here.</div>
           </div>
 
           <div class="field" id="comfy-url-wrap" style="display:none;">

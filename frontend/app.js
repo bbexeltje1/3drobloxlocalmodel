@@ -771,6 +771,23 @@ document.getElementById('btn-run-optimize').addEventListener('click', async (e) 
 /* =========================================================================
    Tab 3: Render Verified Hugging Face 6 GB Multi-View Model Catalog
    ========================================================================= */
+function populateNonRunnableModelOptions(models) {
+  const group = document.getElementById('catalog-only-engines');
+  if (!group) return;
+  const runnableCatalogIds = new Set(['pixal3d_mv', 'hunyuan3d_2mv']);
+  const catalogOnly = models.filter((model) => !runnableCatalogIds.has(model.id));
+  group.replaceChildren();
+  group.hidden = catalogOnly.length === 0;
+  catalogOnly.forEach((model) => {
+    const option = document.createElement('option');
+    option.value = `catalog_only:${model.id}`;
+    option.disabled = true;
+    option.textContent = `${model.name} — catalog only, not runnable yet`;
+    option.title = model.verdict || 'This catalog model does not have a generation backend in this app yet.';
+    group.appendChild(option);
+  });
+}
+
 function renderHfModelCatalog(models) {
   const tbody = document.getElementById('hf-models-tbody');
   tbody.innerHTML = '';
@@ -830,6 +847,7 @@ async function initApp() {
     }
 
     renderSampleCards(state.samples);
+    populateNonRunnableModelOptions(statusData.hf_models || []);
     renderHfModelCatalog(statusData.hf_models || []);
 
     // Pre-populate Dragon Helm 4-view previews & load starter 3D asset into viewport
