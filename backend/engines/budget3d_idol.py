@@ -46,9 +46,8 @@ def run_budget3d_idol_turbo(
     ]
     if missing:
         raise RuntimeError(
-            "Budget3D-Idol-Turbo is not set up. Run scripts\\setup_budget3d_windows.bat, "
-            "accept the DINOv3 and FLUX.2 model terms on Hugging Face, then follow the one-time "
-            "DINOv3 conversion/login instructions printed by the setup script. Missing: "
+            "Budget3D-Idol-Turbo is not set up. Run scripts\\setup_budget3d_windows.bat to download its public weights "
+            "and prepare the local DINOv3 encoder (no login/token required). Missing: "
             + ", ".join(missing)
         )
 
