@@ -1,56 +1,47 @@
 from __future__ import annotations
 
-import base64
 import json
-import os
 from pathlib import Path
+from typing import Any
 
-import httpx
+from poc_spec_blender.mesh_processing import build_mesh_inspection_script
 
 
 class BlenderBridgeError(RuntimeError):
     pass
 
 
-def existing_poc_status(timeout: int = 30) -> dict:
-    base = os.getenv("BLENDER_POC_URL", "http://127.0.0.1:8765").rstrip("/")
+async def blender_mcp_status(client: Any) -> dict:
+    """Use the one BlenderMCPClient owned by RoForge's main FastAPI application."""
     try:
-        with httpx.Client(timeout=timeout) as client:
-            response = client.get(f"{base}/api/blender/status")
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPError as exc:
-        raise BlenderBridgeError(f"Could not query existing Blender PoC at {base}: {exc}") from exc
+        return await client.status()
+    except Exception as exc:
+        raise BlenderBridgeError(f"Blender MCP status check failed: {exc}") from exc
 
 
-def process_with_existing_poc(mesh_path: Path, timeout: int = 600) -> tuple[bytes, dict]:
-    """Ask the existing local Blender PoC service to use its one MCP client instance."""
-    base = os.getenv("BLENDER_POC_URL", "http://127.0.0.1:8765").rstrip("/")
+async def process_with_mcp(client: Any, mesh_path: Path, output_path: Path, timeout: int = 600) -> tuple[bytes, dict]:
+    """Run the shared PoC mesh script through RoForge's existing MCP client instance."""
     if not mesh_path.is_file():
         raise BlenderBridgeError(f"Validated mesh is not present for Blender inspection: {mesh_path}")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    script = build_mesh_inspection_script(mesh_path, output_path)
     try:
-        with httpx.Client(timeout=timeout) as client:
-            with mesh_path.open("rb") as f:
-                response = client.post(f"{base}/api/mesh/process", files={"mesh_file": (mesh_path.name, f, "model/gltf-binary")})
-            if response.status_code != 200:
-                try:
-                    detail = response.json().get("detail", response.text)
-                except Exception:
-                    detail = response.text
-                raise BlenderBridgeError(f"Existing Blender PoC rejected mesh processing (HTTP {response.status_code}): {detail}")
-            encoded_report = response.headers.get("x-blender-report", "")
-            try:
-                report = json.loads(base64.urlsafe_b64decode(encoded_report.encode()).decode()) if encoded_report else {}
-            except Exception:
-                report = {"unparsed_report": encoded_report}
-            metadata = {"content_type": response.headers.get("content-type", ""),
-                        "blender_report": report}
-            if "model/gltf-binary" not in metadata["content_type"] and "application/octet-stream" not in metadata["content_type"]:
-                raise BlenderBridgeError("Blender PoC response did not contain a GLB mesh export.")
-            return response.content, metadata
-    except BlenderBridgeError:
-        raise
-    except httpx.HTTPError as exc:
-        raise BlenderBridgeError(
-            f"Could not reach the existing Blender PoC at {base}. Start it on the same PC; no second MCP connection was opened. Details: {exc}"
-        ) from exc
+        # The MCP client uses its configured timeout; bound this handoff as well.
+        import asyncio
+        result_text = await asyncio.wait_for(
+            client.execute(script, "Inspect the validated RoForge polygon mesh in a temporary collection, report triangles/bounds, and export GLB. Do not save or overwrite the open Blender scene."),
+            timeout=timeout,
+        )
+    except Exception as exc:
+        output_path.unlink(missing_ok=True)
+        raise BlenderBridgeError(f"Blender MCP mesh processing failed: {exc}") from exc
+    if not output_path.is_file() or output_path.stat().st_size < 128:
+        raise BlenderBridgeError("Blender MCP returned without producing an inspected GLB.")
+    marker = "ROFORGE_MESH_INSPECTION="
+    report_line = next((line.split(marker, 1)[1].strip() for line in result_text.splitlines() if marker in line), "{}")
+    try:
+        report = json.loads(report_line)
+    except json.JSONDecodeError:
+        report = {"message": result_text[-1000:]}
+    return output_path.read_bytes(), {"content_type": "model/gltf-binary", "blender_report": report,
+                                     "result": result_text}

@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from blender_script import build_script
+from mesh_processing import build_mesh_inspection_script as _build_mesh_inspection_script
 from mcp_client import BlenderMCPClient, BlenderMCPError
 from spec import require_approval, starter_spec, validate_spec
 
@@ -249,13 +250,6 @@ async def build_asset(payload: dict[str, Any]):
         "unknowns": unknowns,
         "note": "GLB exported from a dedicated PoC collection. The current .blend file is not saved or overwritten.",
     }
-
-
-def _build_mesh_inspection_script(mesh_path: Path, output_path: Path) -> str:
-    """Import, inspect, and re-export only a temporary dedicated collection via the existing MCP."""
-    src = json.dumps(str(mesh_path.resolve()), ensure_ascii=True)
-    dst = json.dumps(str(output_path.resolve()), ensure_ascii=True)
-    return f'''\nimport bpy, json, math\nfrom mathutils import Vector\nSRC = {src}\nDST = {dst}\nCOLLECTION_NAME = "RoForge_SingleImage_Inspection_" + "{uuid.uuid4().hex[:10]}"\nold_selection = list(bpy.context.selected_objects)\nold_active = bpy.context.view_layer.objects.active\nbefore = set(bpy.data.objects)\ncollection = bpy.data.collections.new(COLLECTION_NAME)\nbpy.context.scene.collection.children.link(collection)\ncreated = []\ntry:\n    suffix = SRC.lower().rsplit(".", 1)[-1]\n    if suffix in ("glb", "gltf"):\n        bpy.ops.import_scene.gltf(filepath=SRC)\n    elif suffix == "obj":\n        if hasattr(bpy.ops.wm, "obj_import"):\n            bpy.ops.wm.obj_import(filepath=SRC)\n        else:\n            bpy.ops.import_scene.obj(filepath=SRC)\n    else:\n        raise RuntimeError("Blender inspection supports validated GLB/GLTF or OBJ mesh files only")\n    created = [o for o in bpy.data.objects if o not in before]\n    meshes = [o for o in created if o.type == "MESH"]\n    if not meshes:\n        raise RuntimeError("Imported asset contains no Blender mesh objects")\n    for obj in created:\n        for col in list(obj.users_collection):\n            col.objects.unlink(obj)\n        collection.objects.link(obj)\n    bpy.context.view_layer.update()\n    tri_count = sum(sum(max(0, len(poly.vertices)-2) for poly in obj.data.polygons) for obj in meshes)\n    world_points = [obj.matrix_world @ Vector(corner) for obj in meshes for corner in obj.bound_box]\n    mins = [min(p[i] for p in world_points) for i in range(3)]\n    maxs = [max(p[i] for p in world_points) for i in range(3)]\n    dims = [round(maxs[i]-mins[i], 6) for i in range(3)]\n    if tri_count < 1 or not all(math.isfinite(v) for v in dims) or max(dims) <= 0:\n        raise RuntimeError("Imported Blender geometry failed triangle/dimension validation")\n    bpy.ops.object.select_all(action="DESELECT")\n    for obj in meshes:\n        obj.select_set(True)\n    bpy.context.view_layer.objects.active = meshes[0]\n    if not hasattr(bpy.ops.export_scene, "gltf"):\n        raise RuntimeError("Blender glTF exporter is unavailable")\n    bpy.ops.export_scene.gltf(filepath=DST, export_format="GLB", use_selection=True, export_apply=False)\n    report = {{"mesh_objects": len(meshes), "triangles": tri_count, "dimensions": dims, "bounds_min": mins, "bounds_max": maxs, "orientation": "Blender world axes; transform preserved"}}\n    print("ROFORGE_MESH_INSPECTION=" + json.dumps(report, separators=(",", ":")))\nfinally:\n    for obj in list(bpy.data.objects):\n        if obj not in before and (obj in created or obj.name in collection.objects):\n            bpy.data.objects.remove(obj, do_unlink=True)\n    if collection.name in bpy.data.collections:\n        bpy.data.collections.remove(collection)\n    for obj in old_selection:\n        if obj.name in bpy.data.objects:\n            obj.select_set(True)\n    if old_active and old_active.name in bpy.data.objects:\n        bpy.context.view_layer.objects.active = old_active\n'''
 
 
 @app.post("/api/mesh/process")

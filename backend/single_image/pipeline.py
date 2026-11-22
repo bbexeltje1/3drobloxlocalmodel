@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import threading
@@ -14,7 +15,7 @@ import trimesh
 
 from backend.roblox_pipeline import export_complete_roblox_bundle
 from .background_removal import run_feynobg
-from .blender_bridge import BlenderBridgeError, process_with_existing_poc
+from .blender_bridge import BlenderBridgeError, process_with_mcp
 from .budget3d import generate as generate_budget3d
 from .gaussian_to_mesh import convert_budget3d_ply
 from .preprocess import prepare_for_idol
@@ -84,7 +85,7 @@ def create_job(image_bytes: bytes, filename: str, use_background_removal: bool, 
     return job_id
 
 
-def run_job(job_id: str) -> None:
+async def run_job(job_id: str, mcp_client: Any = None) -> None:
     with JOBS_LOCK:
         job = JOBS.get(job_id)
         if job is None:
@@ -100,8 +101,10 @@ def run_job(job_id: str) -> None:
         _set_job(job_id, progress=5)
         foreground = directory / "feynobg_rgba.png"
         if options["background_removal"]:
-            with GPU_JOB_LOCK:
-                run_feynobg(original, foreground)
+            def _run_background_removal() -> None:
+                with GPU_JOB_LOCK:
+                    run_feynobg(original, foreground)
+            await asyncio.to_thread(_run_background_removal)
         else:
             with Image.open(original) as im:
                 im.convert("RGBA").save(foreground, format="PNG")
@@ -119,15 +122,17 @@ def run_job(job_id: str) -> None:
         # remains responsible for crop/resize and the model's learned framing.
         _stage(job_id, "preprocess", "running", "Preserving full frame and aspect ratio; delegating Idol framing to official sampler")
         prepared = directory / "idol_input.png"
-        image_info = prepare_for_idol(foreground, prepared)
+        image_info = await asyncio.to_thread(prepare_for_idol, foreground, prepared)
         _stage(job_id, "preprocess", "completed", f"Prepared {image_info['width']}×{image_info['height']} full-frame image")
         _set_job(job_id, progress=22, files={**data["files"], "processed": foreground.name, "idol_input": prepared.name})
 
         # Stage 3 — official Budget3D scripts/sample.py in its isolated Python environment.
         _stage(job_id, "gaussian_generation", "running", f"Official Budget3D inference at {options['budget']:.4g} token budget; CUDA required")
         splat_ply = directory / "budget3d_gaussians.ply"
-        with GPU_JOB_LOCK:
-            generate_budget3d(prepared, splat_ply, float(options["budget"]), on_log=lambda line: _log(job_id, line))
+        def _run_budget3d() -> None:
+            with GPU_JOB_LOCK:
+                generate_budget3d(prepared, splat_ply, float(options["budget"]), on_log=lambda line: _log(job_id, line))
+        await asyncio.to_thread(_run_budget3d)
         _stage(job_id, "gaussian_generation", "completed", "Budget3D wrote a Gaussian representation PLY (not a polygon mesh)")
         _set_job(job_id, progress=58, files={**data["files"], "processed": foreground.name,
                                             "idol_input": prepared.name, "gaussian_ply": splat_ply.name})
@@ -135,19 +140,21 @@ def run_job(job_id: str) -> None:
         # Stage 4 — converter boundary validates genuine triangle faces after external extraction.
         _stage(job_id, "mesh_conversion", "running", "Converting Gaussian PLY with explicitly configured compatible converter")
         converted_glb = directory / "converted_mesh.glb"
-        raw_mesh, conversion = convert_budget3d_ply(splat_ply, converted_glb)
+        raw_mesh, conversion = await asyncio.to_thread(convert_budget3d_ply, splat_ply, converted_glb)
         _stage(job_id, "mesh_conversion", "completed", f"Validated {conversion['triangles']:,} triangle faces; watertight={conversion['watertight']}")
         _set_job(job_id, progress=72, conversion=conversion,
                  files={**data["files"], "processed": foreground.name, "idol_input": prepared.name,
                         "gaussian_ply": splat_ply.name, "converted_mesh": converted_glb.name})
 
-        # Stage 5 — optional handoff through the already-running Spec → Blender PoC API.
+        # Stage 5 — optional handoff through the same app-owned Blender MCP client.
         blender_note = "Blender inspection not requested; using validated mesh directly."
         _stage(job_id, "blender", "running", "Blender MCP handoff is optional")
         final_mesh_path = converted_glb
         if options["blender"]:
             try:
-                glb_bytes, meta = process_with_existing_poc(converted_glb)
+                if mcp_client is None:
+                    raise BlenderBridgeError("The main RoForge app has no Blender MCP client configured.")
+                glb_bytes, meta = await process_with_mcp(mcp_client, converted_glb, directory / "blender_inspected_mesh.glb")
                 if len(glb_bytes) < 128:
                     raise BlenderBridgeError("Blender returned an empty GLB.")
                 final_mesh_path = directory / "blender_inspected_mesh.glb"
@@ -174,7 +181,7 @@ def run_job(job_id: str) -> None:
         _stage(job_id, "roblox_export", "running", "Running existing RoForge cleanup, QEM, UV, maps and bundle exporter")
         with Image.open(foreground) as im:
             view = np.array(im.convert("RGBA"), dtype=np.uint8)
-        bundle = export_complete_roblox_bundle(
+        bundle = await asyncio.to_thread(export_complete_roblox_bundle,
             raw_mesh=raw_mesh, output_dir=directory, asset_name=options["asset_name"],
             preset_id=options["preset_id"], target_tris=options["target_tris"],
             texture_size=options["texture_size"], target_studs=options["target_studs"],

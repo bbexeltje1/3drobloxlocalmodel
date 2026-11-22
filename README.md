@@ -40,7 +40,9 @@ A 100% local, privacy-preserving **Multi-View Image-to-3D Studio** purpose-built
 pip install -r requirements.txt
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
-Open `http://127.0.0.1:8000` in your browser.
+Open `http://127.0.0.1:8000` in your browser. The **Single Image → 3D** mode is part of this same app and address; it does not require opening the separate Blender PoC web UI. Its optional Blender MCP status/inspection calls use the MCP client inside RoForge. Install the root requirements after pulling updates so the `mcp` SDK is present.
+
+**Pipeline limitation:** Budget3D outputs Gaussian PLY data. Single Image → 3D intentionally stops at Gaussian-to-mesh conversion unless a compatible `GAUSSIAN_MESH_CONVERTER` is configured and verified; it will not treat the splat PLY as a mesh.
 
 ### 2. Enable Full AI `Pixal3D Multi-View` on 6 GB VRAM + 32 GB RAM
 1. Install **ComfyUI (`>= 0.33.0`)**.

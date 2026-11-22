@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import os
 import shutil
+from contextlib import asynccontextmanager
 import time
 import uuid
 from pathlib import Path
@@ -31,7 +32,8 @@ from .engines.hunyuan_mv import is_hunyuan_available, run_hunyuan3d_2mv_lowvram
 from .single_image.background_removal import local_status as feynobg_local_status
 from .single_image.budget3d import status as budget3d_local_status
 from .single_image.gaussian_to_mesh import conversion_status as gaussian_conversion_status
-from .single_image.blender_bridge import BlenderBridgeError, existing_poc_status
+from .single_image.blender_bridge import BlenderBridgeError, blender_mcp_status
+from poc_spec_blender.mcp_client import BlenderMCPClient
 from .single_image.pipeline import create_job as create_single_image_job, get_job as get_single_image_job, run_job as run_single_image_job
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -43,9 +45,21 @@ WORKFLOWS_DIR = ROOT_DIR / "workflows"
 SAMPLES_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # One RoForge web app and one Blender MCP client instance.
+    app.state.blender_mcp = BlenderMCPClient()
+    try:
+        _ensure_initial_demo()
+        yield
+    finally:
+        await app.state.blender_mcp.close()
+
+
 app = FastAPI(
-    title="RoForge 3D — Local Multi-View Roblox Asset Creator",
-    version="1.0.0",
+    title="RoForge 3D — Local Roblox Asset Creator",
+    version="1.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -146,11 +160,6 @@ def _format_job_response(
         "lua_script": lua_script,
         "stats": stats,
     }
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    _ensure_initial_demo()
 
 
 @app.get("/api/status")
@@ -415,7 +424,7 @@ def single_image_config():
         "feynobg": feynobg_local_status(),
         "budget3d": budget3d_local_status(),
         "gaussian_to_mesh": gaussian_conversion_status(),
-        "blender_poc_url": os.getenv("BLENDER_POC_URL", "http://127.0.0.1:8765"),
+        "blender_mcp": {"integrated": True, "client": "RoForge application"},
         "notes": [
             "Budget3D's official sampler uses Idol ImagePreprocessor internally.",
             "Budget3D Gaussian PLY is never passed directly to the triangle-mesh optimizer.",
@@ -425,10 +434,9 @@ def single_image_config():
 
 
 @app.get("/api/single-image/blender-status")
-def single_image_blender_status():
+async def single_image_blender_status():
     try:
-        # This queries the already-running PoC, which owns the only MCP client session.
-        return existing_poc_status()
+        return await blender_mcp_status(app.state.blender_mcp)
     except BlenderBridgeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -463,7 +471,7 @@ async def single_image_generate(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    background_tasks.add_task(run_single_image_job, job_id)
+    background_tasks.add_task(run_single_image_job, job_id, app.state.blender_mcp)
     return {"job_id": job_id, "status_url": f"/api/single-image/{job_id}", "message": "Job accepted"}
 
 

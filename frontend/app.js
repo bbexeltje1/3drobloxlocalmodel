@@ -420,7 +420,7 @@ document.getElementById('single-check-blender').addEventListener('click', async 
     const response = await fetch('/api/single-image/blender-status');
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Blender MCP check failed.');
-    el.textContent = `Blender MCP connected through existing PoC. Tools: ${(data.tools || []).join(', ')}. Add-on status: ${data.addon_status || 'available'}`;
+    el.textContent = `Blender MCP connected in this RoForge app. Tools: ${(data.tools || []).join(', ')}. Add-on status: ${data.addon_status || 'available'}`;
   } catch (err) { el.textContent = `Blender MCP unavailable: ${err.message}`; }
   finally { button.disabled = false; button.textContent = 'Check Blender MCP tools'; }
 });
