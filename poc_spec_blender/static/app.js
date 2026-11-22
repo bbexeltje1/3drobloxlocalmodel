@@ -1,7 +1,8 @@
 const $ = (id) => document.getElementById(id);
 let blenderReady = false;
 let currentSpec = null;
-let selectedReferences = [];
+const referenceFiles = { hero: null, side: null, front: null, spec: null };
+const referenceLabels = { hero: 'Hero shot', side: 'Side view', front: 'Front view', spec: 'Spec sheet / extra view' };
 let toastTimer;
 
 function toast(message, error = false) {
@@ -45,45 +46,57 @@ function setBlenderState(state, message) {
   syncBuildButton();
 }
 
-function renderImages() {
-  const list = $('image-list');
-  list.replaceChildren();
-  selectedReferences.forEach((file, index) => {
-    const tag = document.createElement('span');
-    tag.className = 'image-token';
-    const label = document.createElement('span');
-    label.textContent = `${index + 1}. ${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.textContent = '×';
-    remove.title = `Remove ${file.name}`;
-    remove.setAttribute('aria-label', `Remove ${file.name}`);
-    remove.addEventListener('click', () => {
-      selectedReferences.splice(index, 1);
-      renderImages();
+function setupReferenceSlots() {
+  document.querySelectorAll('.ref-card').forEach(card => {
+    const slot = card.dataset.slot;
+    const input = card.querySelector('.ref-input');
+    const choose = card.querySelector('.ref-choose');
+    const remove = card.querySelector('.ref-remove');
+    const preview = card.querySelector('.ref-preview');
+    const image = preview.querySelector('img');
+    const placeholder = preview.querySelector('span');
+    const filename = card.querySelector('.ref-file-name');
+
+    choose.addEventListener('click', () => input.click());
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      input.value = '';
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) return toast('Each reference image must be 10 MB or smaller.', true);
+      if (!file.type.startsWith('image/')) return toast('Choose an image file for this view.', true);
+      if (card.dataset.objectUrl) URL.revokeObjectURL(card.dataset.objectUrl);
+      const url = URL.createObjectURL(file);
+      card.dataset.objectUrl = url;
+      referenceFiles[slot] = file;
+      image.src = url;
+      image.hidden = false;
+      placeholder.hidden = true;
+      filename.textContent = file.name;
+      filename.title = file.name;
+      filename.hidden = false;
+      remove.hidden = false;
+      choose.textContent = 'Replace image';
     });
-    tag.append(label, remove);
-    list.appendChild(tag);
+    remove.addEventListener('click', () => {
+      if (card.dataset.objectUrl) URL.revokeObjectURL(card.dataset.objectUrl);
+      delete card.dataset.objectUrl;
+      referenceFiles[slot] = null;
+      image.removeAttribute('src');
+      image.hidden = true;
+      placeholder.hidden = false;
+      filename.textContent = '';
+      filename.hidden = true;
+      remove.hidden = true;
+      choose.textContent = 'Choose image';
+      input.value = '';
+    });
   });
 }
 
-function addSelectedImages() {
-  const input = $('references');
-  const incoming = [...input.files];
-  input.value = '';
-  let added = 0;
-  for (const file of incoming) {
-    const duplicate = selectedReferences.some(existing => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified);
-    if (duplicate) continue;
-    if (selectedReferences.length >= 4) {
-      toast('The PoC accepts up to four reference images. Remove one before adding another.', true);
-      break;
-    }
-    selectedReferences.push(file);
-    added += 1;
-  }
-  renderImages();
-  if (added) toast(`${added} image${added === 1 ? '' : 's'} added; ${selectedReferences.length}/4 selected.`);
+function orderedReferences() {
+  return ['hero', 'side', 'front', 'spec']
+    .filter(slot => referenceFiles[slot])
+    .map(slot => ({ label: referenceLabels[slot], file: referenceFiles[slot] }));
 }
 
 function showResult(value, success = true) {
@@ -141,17 +154,18 @@ $('check-blender').addEventListener('click', async () => {
   }
 });
 
-$('references').addEventListener('change', addSelectedImages);
+setupReferenceSlots();
 $('approve-spec').addEventListener('change', syncBuildButton);
 $('load-starter').addEventListener('click', loadStarter);
 
 $('draft-spec').addEventListener('click', async () => {
   const prompt = $('prompt').value.trim();
   if (!prompt) return toast('Add a short design brief first.', true);
-  if (selectedReferences.length > 4) return toast('Upload at most four images.', true);
+  const references = orderedReferences();
   const form = new FormData();
   form.set('prompt', prompt);
-  for (const file of selectedReferences) form.append('references', file);
+  for (const reference of references) form.append('references', reference.file, reference.file.name);
+  form.set('reference_labels', JSON.stringify(references.map(reference => reference.label)));
   const button = $('draft-spec');
   button.disabled = true;
   button.textContent = 'Drafting locally…';

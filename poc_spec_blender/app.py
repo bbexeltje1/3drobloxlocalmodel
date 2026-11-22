@@ -120,6 +120,7 @@ def _json_from_model(content: Any) -> dict[str, Any]:
 async def draft_spec(
     prompt: str = Form(...),
     references: list[UploadFile] = File(default=[]),
+    reference_labels: str = Form(default="[]"),
 ):
     if not VLM_URL:
         raise HTTPException(
@@ -131,7 +132,18 @@ async def draft_spec(
     if len(references) > 4:
         raise HTTPException(status_code=400, detail="Upload up to four reference images.")
 
-    images: list[tuple[str, str]] = []
+    try:
+        labels = json.loads(reference_labels)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Reference image labels must be valid JSON.") from exc
+    if not isinstance(labels, list) or any(not isinstance(label, str) for label in labels):
+        raise HTTPException(status_code=400, detail="Reference labels must be a JSON list of strings.")
+    if not labels and references:
+        labels = [f"Reference image {index + 1}" for index in range(len(references))]
+    elif len(labels) != len(references):
+        raise HTTPException(status_code=400, detail="Reference labels must match the uploaded images.")
+
+    images: list[tuple[str, str]]
     for upload in references:
         mime, encoded = await _read_upload(upload)
         images.append((mime, encoded))
@@ -146,7 +158,12 @@ async def draft_spec(
         "are not measurements. Keep color references by palette key. Exact counts explicitly stated by the user may have exact:true. "
         "Keep part ids lowercase snake_case. Do not include markdown or executable code."
     )
-    user_text = guide + "\n\nUser design request:\n" + prompt
+    attachment_note = ""
+    if labels:
+        attachment_note = "\n\nThe following reference images are attached in this exact order: " + "; ".join(
+            f"Image {index + 1}: {label}" for index, label in enumerate(labels)
+        ) + ". Use each image according to its named view; do not treat their order as proof of scale."
+    user_text = guide + attachment_note + "\n\nUser design request:\n" + prompt
     if VLM_PROVIDER == "ollama":
         payload = {"model": VLM_MODEL, "stream": False, "format": "json",
                    "messages": [{"role": "user", "content": user_text, "images": [encoded for _mime, encoded in images]}]}
@@ -168,6 +185,14 @@ async def draft_spec(
         return {"spec": spec, "unknowns": unknowns, "notice": "Draft only. Review counts, colors, units, and unknowns before building."}
     except HTTPException:
         raise
+    except httpx.HTTPStatusError as exc:
+        body = exc.response.text.strip()
+        if len(body) > 1600:
+            body = body[:1600] + "…"
+        detail = f"Local VLM returned HTTP {exc.response.status_code} at {VLM_URL}."
+        if body:
+            detail += f" Response: {body}"
+        raise HTTPException(status_code=502, detail=detail) from exc
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=502, detail=f"Local VLM draft failed: {exc}") from exc
 
