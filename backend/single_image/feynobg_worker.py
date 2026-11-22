@@ -1,12 +1,15 @@
 """One-shot official NoBg/FeyNobg inference worker, isolated from the FastAPI process."""
 from __future__ import annotations
 
+import importlib
 import os
 import sys
 import traceback
 from pathlib import Path
 
 from PIL import Image
+
+from feynobg_local_dispatch import local_birefnet_tags, local_model_info
 
 
 def main() -> int:
@@ -26,7 +29,10 @@ def main() -> int:
         print(f"Configured FeyNobg model directory is not visible to the worker: {model_dir} (cwd: {Path.cwd()})", file=sys.stderr)
         return 4
     try:
-        model = AutoModel.from_pretrained(str(model_dir), local_files_only=True).eval()
+        tags = local_birefnet_tags(model_dir)
+        nobg_auto = importlib.import_module("nobg.auto")
+        with local_model_info(nobg_auto, model_dir, tags):
+            model = AutoModel.from_pretrained(str(model_dir), local_files_only=True).eval()
         processor = AutoProcessor.from_pretrained(str(model_dir), local_files_only=True)
         image = Image.open(source).convert("RGB")
         device = "cuda" if torch.cuda.is_available() else "cpu"
