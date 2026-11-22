@@ -22,9 +22,12 @@ def main() -> int:
         print(f"Cannot import official nobg/PyTorch runtime in configured FeyNobg environment: {type(exc).__name__}: {exc}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         return 3
+    if not model_dir.is_dir():
+        print(f"Configured FeyNobg model directory is not visible to the worker: {model_dir} (cwd: {Path.cwd()})", file=sys.stderr)
+        return 4
     try:
-        model = AutoModel.from_pretrained(str(model_dir)).eval()
-        processor = AutoProcessor.from_pretrained(str(model_dir))
+        model = AutoModel.from_pretrained(str(model_dir), local_files_only=True).eval()
+        processor = AutoProcessor.from_pretrained(str(model_dir), local_files_only=True)
         image = Image.open(source).convert("RGB")
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = model.to(device)
@@ -44,6 +47,7 @@ def main() -> int:
         print(f"FeyNobg local inference complete on {device}: {cutout.width}x{cutout.height}")
     except Exception as exc:
         print(f"FeyNobg local inference error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return 4
     finally:
         if "torch" in locals() and torch.cuda.is_available():
