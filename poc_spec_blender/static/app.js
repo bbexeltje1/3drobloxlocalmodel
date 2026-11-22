@@ -1,8 +1,8 @@
 const $ = (id) => document.getElementById(id);
 let blenderReady = false;
 let currentSpec = null;
-const referenceFiles = { hero: null, side: null, front: null, spec: null };
-const referenceLabels = { hero: 'Hero shot', side: 'Side view', front: 'Front view', spec: 'Spec sheet / extra view' };
+const referenceFiles = { hero: null };
+const referenceLabels = { hero: 'Hero shot' };
 let toastTimer;
 
 function toast(message, error = false) {
@@ -94,7 +94,7 @@ function setupReferenceSlots() {
 }
 
 function orderedReferences() {
-  return ['hero', 'side', 'front', 'spec']
+  return ['hero']
     .filter(slot => referenceFiles[slot])
     .map(slot => ({ label: referenceLabels[slot], file: referenceFiles[slot] }));
 }

@@ -61,12 +61,9 @@ class OllamaDraftRouteTests(unittest.IsolatedAsyncioTestCase):
                         "/api/draft-spec",
                         data={
                             "prompt": "Create a Gobble Rail",
-                            "reference_labels": json.dumps(["Hero shot", "Front view"]),
+                            "reference_labels": json.dumps(["Hero shot"]),
                         },
-                        files=[
-                            ("references", ("hero.png", b"hero image", "image/png")),
-                            ("references", ("front.png", b"front image", "image/png")),
-                        ],
+                        files=[("references", ("hero.png", b"hero image", "image/png"))],
                     )
 
         self.assertEqual(response.status_code, 200, response.text)
@@ -75,11 +72,8 @@ class OllamaDraftRouteTests(unittest.IsolatedAsyncioTestCase):
         payload = captured["payload"]
         self.assertEqual(payload["model"], "qwen3.5:4b")
         message = payload["messages"][0]
-        self.assertIn("Image 1: Hero shot; Image 2: Front view", message["content"])
-        self.assertEqual(
-            message["images"],
-            [base64.b64encode(b"hero image").decode(), base64.b64encode(b"front image").decode()],
-        )
+        self.assertIn("Image 1: Hero shot", message["content"])
+        self.assertEqual(message["images"], [base64.b64encode(b"hero image").decode()])
 
 
 if __name__ == "__main__":

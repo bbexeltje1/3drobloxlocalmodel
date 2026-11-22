@@ -27,29 +27,14 @@
 
     <section class="grid">
       <article class="panel inputs-panel">
-        <div class="panel-heading"><div><div class="step">01 / INPUT</div><h2>Design brief</h2></div><span class="chip">TEXT + REFERENCES</span></div>
+        <div class="panel-heading"><div><div class="step">01 / INPUT</div><h2>Design brief</h2></div><span class="chip">TEXT + HERO SHOT</span></div>
         <label class="field-label" for="prompt">What should the asset be?</label>
         <textarea id="prompt" rows="5" placeholder="Describe the model, hard requirements, dimensions, counts, colors and moving parts. Say which details are unknown.">Build a stylized Roblox Gobble Rail from the supplied references. Keep the 13 primary feathers separate; use the reference palette and keep the trigger, magazine, and wattle as separate moving parts. Treat unspecified dimensions and pivot locations as provisional.</textarea>
-        <div class="field-label">Reference images <span class="muted">Choose each view separately · max 10 MB per image</span></div>
+        <div class="field-label">Hero reference <span class="muted">One clear three-quarter view · max 10 MB</span></div>
         <div class="reference-grid">
           <div class="ref-card" data-slot="hero">
             <div class="ref-heading"><b>HERO SHOT</b><span>Best overall view</span></div>
             <div class="ref-preview"><span>Three-quarter view<br/>of the assembled asset</span><img alt="Hero shot preview" hidden /></div>
-            <div class="ref-controls"><span class="ref-file-name" hidden></span><button class="ref-choose" type="button">Choose image</button><button class="ref-remove" type="button" hidden>Remove</button><input class="ref-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></div>
-          </div>
-          <div class="ref-card" data-slot="side">
-            <div class="ref-heading"><b>SIDE VIEW</b><span>Orthographic if possible</span></div>
-            <div class="ref-preview"><span>Side profile<br/>same asset and scale</span><img alt="Side view preview" hidden /></div>
-            <div class="ref-controls"><span class="ref-file-name" hidden></span><button class="ref-choose" type="button">Choose image</button><button class="ref-remove" type="button" hidden>Remove</button><input class="ref-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></div>
-          </div>
-          <div class="ref-card" data-slot="front">
-            <div class="ref-heading"><b>FRONT VIEW</b><span>Looking along the long axis</span></div>
-            <div class="ref-preview"><span>Front profile<br/>same asset and scale</span><img alt="Front view preview" hidden /></div>
-            <div class="ref-controls"><span class="ref-file-name" hidden></span><button class="ref-choose" type="button">Choose image</button><button class="ref-remove" type="button" hidden>Remove</button><input class="ref-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></div>
-          </div>
-          <div class="ref-card" data-slot="spec">
-            <div class="ref-heading"><b>SPEC / EXTRA</b><span>Optional · spec sheet, back, or exploded</span></div>
-            <div class="ref-preview"><span>Exact counts/colors<br/>or another useful angle</span><img alt="Spec or extra reference preview" hidden /></div>
             <div class="ref-controls"><span class="ref-file-name" hidden></span><button class="ref-choose" type="button">Choose image</button><button class="ref-remove" type="button" hidden>Remove</button><input class="ref-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></div>
           </div>
         </div>
