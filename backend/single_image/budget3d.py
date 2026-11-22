@@ -14,8 +14,9 @@ class Budget3DError(RuntimeError):
 
 
 def _offline_environment() -> dict[str, str]:
-    allowed = ("PATH", "SystemRoot", "WINDIR", "USERPROFILE", "LOCALAPPDATA", "APPDATA", "TEMP", "TMP", "HOME",
-               "CUDA_PATH", "CUDA_HOME", "CUDA_VISIBLE_DEVICES", "HF_HOME", "HF_HUB_CACHE", "TRANSFORMERS_CACHE",
+    allowed = ("PATH", "SystemRoot", "WINDIR", "USERPROFILE", "USERNAME", "USER", "LOGNAME", "LNAME",
+               "LOCALAPPDATA", "APPDATA", "TEMP", "TMP", "HOME", "CUDA_PATH", "CUDA_HOME",
+               "CUDA_VISIBLE_DEVICES", "HF_HOME", "HF_HUB_CACHE", "TRANSFORMERS_CACHE",
                "TORCH_HOME", "BUDGET3D_DINOV3", "BUDGET3D_FLUX2_VAE")
     env = {key: os.environ[key] for key in allowed if key in os.environ}
     env.update({"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"})
