@@ -53,6 +53,11 @@ class BlenderMCPClient:
             read_stream, write_stream = await stack.enter_async_context(stdio_client(params))
             session = await stack.enter_async_context(ClientSession(read_stream, write_stream))
             await asyncio.wait_for(session.initialize(), timeout=30)
+        except asyncio.CancelledError:
+            # Cancellation (for example, Ctrl+C during MCP startup) must still
+            # unwind the AnyIO context in this same task, then propagate.
+            await stack.aclose()
+            raise
         except Exception as exc:
             await stack.aclose()
             raise BlenderMCPError(
@@ -82,35 +87,33 @@ class BlenderMCPClient:
 
     async def status(self) -> dict[str, Any]:
         async with self._lock:
-            session = await self._connect()
             try:
-                listed = await asyncio.wait_for(session.list_tools(), timeout=20)
-                names = {tool.name for tool in listed.tools}
-            except Exception as exc:
+                await self._connect()
+                return await self.status_unlocked()
+            finally:
+                # MCP stdio uses AnyIO task groups. Enter and exit them in the
+                # same request task; never carry the stack across HTTP requests.
                 await self.close()
-                raise BlenderMCPError(f"Could not list tools from MCP for Blender: {exc}") from exc
-            required = {"get_addon_status", "execute_blender_code"}
-            if not required.issubset(names):
-                raise BlenderMCPError("The configured MCP server is reachable, but expected tools are missing: " + ", ".join(sorted(required - names)))
-            text = await self._call("get_addon_status", {})
-            if not text.strip():
-                raise BlenderMCPError("MCP tool get_addon_status returned no status text; connection is not confirmed.")
-            if "not connected to blender" in text.lower():
-                raise BlenderMCPError("MCP for Blender started, but its add-on socket is not connected. Start the add-on server in Blender's sidebar.")
-            return {"connected": True, "server": "mcp-for-blender", "tools": sorted(names), "addon_status": text}
 
     async def execute(self, code: str, user_prompt: str) -> str:
         async with self._lock:
-            # First status check confirms the actual add-on and tool are responsive.
-            await self.status_unlocked()
-            result = await self._call("execute_blender_code", {"code": code, "user_prompt": user_prompt})
-            if "Error executing code:" in result or result.startswith("Rejected by safe mode"):
-                raise BlenderMCPError(result)
-            return result
+            try:
+                # Keep handshake and build within one request-scoped MCP session.
+                await self._connect()
+                await self.status_unlocked()
+                result = await self._call("execute_blender_code", {"code": code, "user_prompt": user_prompt})
+                if "Error executing code:" in result or result.startswith("Rejected by safe mode"):
+                    raise BlenderMCPError(result)
+                return result
+            finally:
+                await self.close()
 
     async def status_unlocked(self) -> dict[str, Any]:
         session = await self._connect()
-        listed = await asyncio.wait_for(session.list_tools(), timeout=20)
+        try:
+            listed = await asyncio.wait_for(session.list_tools(), timeout=20)
+        except Exception as exc:
+            raise BlenderMCPError(f"Could not list tools from MCP for Blender: {exc}") from exc
         names = {tool.name for tool in listed.tools}
         if not {"get_addon_status", "execute_blender_code"}.issubset(names):
             raise BlenderMCPError("MCP tools are incomplete; expected get_addon_status and execute_blender_code.")
