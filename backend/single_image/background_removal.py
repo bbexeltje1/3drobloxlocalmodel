@@ -19,7 +19,8 @@ def configured_python() -> str:
 
 
 def _worker_environment(model_dir: Path) -> dict[str, str]:
-    allowed = ("PATH", "SystemRoot", "WINDIR", "USERPROFILE", "LOCALAPPDATA", "APPDATA", "TEMP", "TMP", "HOME",
+    allowed = ("PATH", "SystemRoot", "WINDIR", "USERPROFILE", "USERNAME", "USER", "LOGNAME", "LNAME",
+               "LOCALAPPDATA", "APPDATA", "TEMP", "TMP", "HOME",
                "CUDA_PATH", "CUDA_HOME", "CUDA_VISIBLE_DEVICES", "HF_HOME", "HF_HUB_CACHE", "TRANSFORMERS_CACHE", "TORCH_HOME",
                "PYTHONPATH", "PYTHONHOME", "PYTHONUSERBASE", "PYTHONNOUSERSITE", "VIRTUAL_ENV", "CONDA_PREFIX", "CONDA_DEFAULT_ENV")
     env = {key: os.environ[key] for key in allowed if key in os.environ}
