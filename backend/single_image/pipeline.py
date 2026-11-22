@@ -118,8 +118,8 @@ async def run_job(job_id: str, mcp_client: Any = None) -> None:
             _stage(job_id, "background_removal", "skipped", "Disabled by user; source retained and converted to RGBA without masking")
         _set_job(job_id, progress=15, files={**data["files"], "processed": foreground.name})
 
-        # Stage 2 — only mode/compositing normalization. Idol's official ImagePreprocessor
-        # remains responsible for crop/resize and the model's learned framing.
+        # Stage 2 — preserve FeyNobg's RGBA matte. Idol's official ImagePreprocessor
+        # consumes an existing matte and remains responsible for crop/resize and framing.
         _stage(job_id, "preprocess", "running", "Preserving full frame and aspect ratio; delegating Idol framing to official sampler")
         prepared = directory / "idol_input.png"
         image_info = await asyncio.to_thread(prepare_for_idol, foreground, prepared)

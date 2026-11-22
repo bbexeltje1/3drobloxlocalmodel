@@ -32,7 +32,11 @@ class SingleImageAdapterTests(unittest.TestCase):
             self.assertEqual(details["aspect_ratio"], 2.0)
             prepared = Image.open(dest)
             self.assertEqual(prepared.size, (180, 90))
-            self.assertTrue(np.any(np.array(prepared)[:, :3, 0] > 200))
+            self.assertEqual(prepared.mode, "RGBA")
+            pixels = np.array(prepared)
+            self.assertTrue(np.any(pixels[:, :3, 0] > 200))
+            self.assertTrue(np.all(pixels[5:85, :3, 3] == 255))
+            self.assertEqual(pixels[45, 90, 3], 0)
 
     def test_converted_triangle_scene_is_accepted(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -8,21 +8,20 @@ class ImagePreparationError(RuntimeError):
     pass
 
 
-def prepare_for_idol(source: Path, destination: Path, background: tuple[int, int, int] = (255, 255, 255)) -> dict:
-    """Preserve the full source frame; leave framing/resizing/cropping to Idol's own preprocessor.
+def prepare_for_idol(source: Path, destination: Path) -> dict:
+    """Preserve full-frame RGBA; let Idol use the existing matte instead of rematting.
 
-    Budget3D's official ImagePreprocessor is invoked by its sampling entry point. This adapter only
-    normalizes mode for that API and composites alpha on a neutral, explicit background without
-    cropping or changing the source aspect ratio.
+    The official Idol preprocessor detects non-opaque alpha and skips its own BiRefNet
+    background-removal pass. Keeping FeyNobg's matte avoids discarding a good cutout and
+    asking the second model to find the subject again. Opaque RGB sources still take Idol's
+    official background-removal path.
     """
     try:
         with Image.open(source) as im:
             rgba = im.convert("RGBA")
             size = rgba.size
-            bg = Image.new("RGBA", size, (*background, 255))
-            bg.alpha_composite(rgba)
             destination.parent.mkdir(parents=True, exist_ok=True)
-            bg.convert("RGB").save(destination, format="PNG")
+            rgba.save(destination, format="PNG")
     except Exception as exc:
         raise ImagePreparationError(f"Could not prepare image for Idol: {exc}") from exc
     return {"width": size[0], "height": size[1], "aspect_ratio": round(size[0] / size[1], 6),
