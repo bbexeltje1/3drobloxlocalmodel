@@ -56,7 +56,8 @@ class SpecTests(unittest.TestCase):
         self.assertEqual(parsed_spec, spec)
         self.assertIn('json.loads(', source)
         self.assertIn('root_obj.empty_display_type = "PLAIN_AXES"', source)
-        self.assertIn('wattle = uv_sphere("Wattle", (-1.22*S, -0.16*S, 0.0)', source)
+        self.assertIn('wattle = uv_sphere("Wattle", (-0.82*S, 0.15*S, 0.0)', source)
+        self.assertIn('(-0.84*S, 0.27*S, 0.0), motion_by_part.get("wattle", {})', source)
 
 
 class MCPRequestLifecycleTests(unittest.IsolatedAsyncioTestCase):
