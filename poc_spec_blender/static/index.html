@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RoForge · Spec to Blender PoC</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark">R</div>
+    <div class="brand-copy"><strong>RoForge</strong><span>SPEC → BLENDER · LOCAL PoC</span></div>
+    <div class="local-badge"><i></i> LOOPBACK ONLY</div>
+  </header>
+  <main>
+    <section class="intro">
+      <div class="eyebrow">A controllable asset pipeline</div>
+      <h1>Describe it. Review the spec.<br/><em>Build separate, color-true parts.</em></h1>
+      <p>A local vision model can draft the structured spec; Blender MCP builds the approved parts and assigns materials from exact hex values. No monolithic AI mesh, no color guessing at build time.</p>
+    </section>
+
+    <div class="status-row">
+      <div id="app-status" class="status-card"><span class="pulse"></span><span>Checking local app…</span></div>
+      <button id="check-blender" class="button button-secondary" type="button">Test Blender MCP</button>
+      <div id="blender-status" class="status-card state-unknown"><span class="dot"></span><span>Blender not tested</span></div>
+    </div>
+
+    <section class="grid">
+      <article class="panel inputs-panel">
+        <div class="panel-heading"><div><div class="step">01 / INPUT</div><h2>Design brief</h2></div><span class="chip">TEXT + REFERENCES</span></div>
+        <label class="field-label" for="prompt">What should the asset be?</label>
+        <textarea id="prompt" rows="5" placeholder="Describe the model, hard requirements, dimensions, counts, colors and moving parts. Say which details are unknown.">Build a stylized Roblox Gobble Rail from the supplied references. Keep the 13 primary feathers separate; use the reference palette and keep the trigger, magazine, and wattle as separate moving parts. Treat unspecified dimensions and pivot locations as provisional.</textarea>
+        <label class="field-label">Reference images <span class="muted">up to 4 · sent only to a configured local VLM</span></label>
+        <label class="upload-zone" for="references"><span class="upload-icon">＋</span><span><b>Choose reference images</b><small>PNG, JPG, or WebP · max 10 MB each</small></span><input id="references" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple /></label>
+        <div id="image-list" class="image-list"></div>
+        <div class="actions split-actions">
+          <button id="draft-spec" class="button button-primary" type="button">Draft spec with local VLM</button>
+          <button id="load-starter" class="button button-quiet" type="button">Load Gobble Rail draft</button>
+        </div>
+        <p id="vlm-note" class="hint">Local VLM not configured. You can still edit the included Gobble Rail JSON. Images stay on this PC when you run this app locally.</p>
+      </article>
+
+      <article class="panel spec-panel">
+        <div class="panel-heading"><div><div class="step">02 / REVIEW</div><h2>Structured spec</h2></div><span class="chip chip-gold">EDITABLE JSON</span></div>
+        <p class="panel-help">The JSON is the source of truth. Confirm the hex colors, exact counts, overall scale, and provisional values before allowing Blender to build.</p>
+        <label class="sr-only" for="spec-json">Structured asset JSON spec</label>
+        <textarea id="spec-json" class="code-editor" spellcheck="false" aria-label="Structured asset JSON spec"></textarea>
+        <div class="approval-row"><input id="approve-spec" type="checkbox" /><label for="approve-spec"><strong>I reviewed this spec.</strong> I understand unresolved dimensions and pivots are draft estimates.</label></div>
+        <button id="build-asset" class="button button-build" type="button" disabled><span>Build in Blender</span><span aria-hidden="true">↗</span></button>
+        <p class="hint">A connection test and explicit approval are required. The build creates a named PoC collection and exports a GLB; it will not save over your open .blend.</p>
+      </article>
+    </section>
+
+    <section id="result-panel" class="panel result-panel hidden">
+      <div class="panel-heading"><div><div class="step">03 / RESULT</div><h2>Build response</h2></div><span id="result-pill" class="chip">LOCAL</span></div>
+      <pre id="result-text"></pre>
+      <div id="download-row" class="download-row"></div>
+    </section>
+
+    <section class="workflow-strip">
+      <div class="workflow-title"><div class="step">WHY THIS WAY</div><h2>Not one mesh,<br/>then a paint job.</h2></div>
+      <div class="workflow-item"><span>1</span><b>Draft</b><p>Text and reference images become editable JSON. Unknowns stay visible.</p></div>
+      <div class="workflow-item"><span>2</span><b>Approve</b><p>You check units, dimensions, exact counts, palette and pivots.</p></div>
+      <div class="workflow-item"><span>3</span><b>Build</b><p>Blender creates named parts and applies material hex codes at creation.</p></div>
+    </section>
+    <footer>Local-only proof of concept · No cloud tunnel · Blender remains the final editable scene</footer>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

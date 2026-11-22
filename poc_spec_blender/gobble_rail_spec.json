@@ -1,0 +1,143 @@
+{
+  "asset_name": "Gobble_Rail_POC",
+  "unit_mode": "normalized",
+  "overall": {
+    "length": 10.0,
+    "height": 4.8,
+    "width": 2.6,
+    "source_note": "Reference spec gives a 10:4.8:2.6 proportion; total Roblox stud length is not specified."
+  },
+  "palette": {
+    "roast_skin": "#C86218",
+    "feather_tips": "#FFD54F",
+    "cranberry_gel": "#A0002D",
+    "corn_kernels": "#ECC22B",
+    "pie_filling": "#E07A1E",
+    "brass_trim": "#C9A84C",
+    "bone": "#F4E9D5",
+    "dark_underbody": "#67351E"
+  },
+  "parts": [
+    {
+      "id": "primary_feathers",
+      "label": "Primary feathers",
+      "count": 13,
+      "color": "feather_tips",
+      "kind": "feather_fan",
+      "exact": true
+    },
+    {
+      "id": "turkey_receiver",
+      "label": "Roast turkey receiver",
+      "count": 1,
+      "color": "roast_skin",
+      "kind": "receiver",
+      "exact": false
+    },
+    {
+      "id": "corn_cobs",
+      "label": "Corn rail cobs",
+      "count": 2,
+      "color": "corn_kernels",
+      "kind": "corn_rail",
+      "exact": false
+    },
+    {
+      "id": "kernel_rows_per_cob",
+      "label": "Kernel rows per cob",
+      "count": 10,
+      "color": "corn_kernels",
+      "kind": "kernel_rows",
+      "exact": false,
+      "range": [
+        10,
+        12
+      ],
+      "provisional": true
+    },
+    {
+      "id": "pie_coil_rings",
+      "label": "Pie coil rings",
+      "count": 2,
+      "color": "pie_filling",
+      "kind": "coil_ring",
+      "exact": true
+    },
+    {
+      "id": "cranberry_can_ribs",
+      "label": "Cranberry magazine ribs",
+      "count": 8,
+      "color": "cranberry_gel",
+      "kind": "can_ribs",
+      "exact": true
+    },
+    {
+      "id": "wishbone_muzzle",
+      "label": "Wishbone muzzle",
+      "count": 1,
+      "color": "bone",
+      "kind": "wishbone",
+      "exact": false
+    },
+    {
+      "id": "trigger",
+      "label": "Trigger",
+      "count": 1,
+      "color": "brass_trim",
+      "kind": "moving_trigger",
+      "exact": false
+    },
+    {
+      "id": "magazine",
+      "label": "Cranberry magazine",
+      "count": 1,
+      "color": "cranberry_gel",
+      "kind": "moving_magazine",
+      "exact": false
+    },
+    {
+      "id": "wattle",
+      "label": "Wattle",
+      "count": 1,
+      "color": "cranberry_gel",
+      "kind": "moving_wattle",
+      "exact": false
+    }
+  ],
+  "motions": [
+    {
+      "part_id": "trigger",
+      "type": "rotation",
+      "angle_degrees": 15,
+      "axis": "Z",
+      "timing": "on fire",
+      "pivot": null,
+      "provisional": true
+    },
+    {
+      "part_id": "magazine",
+      "type": "translation",
+      "angle_degrees": 15,
+      "axis": "down-and-forward",
+      "pivot": null,
+      "provisional": true
+    },
+    {
+      "part_id": "wattle",
+      "type": "pendulum_swing",
+      "angle_degrees": null,
+      "axis": "Z",
+      "pivot": null,
+      "provisional": true
+    }
+  ],
+  "unknowns": [
+    "Target overall length in Roblox studs is not given; current dimensions are normalized proportions only.",
+    "The screenshots do not specify exact pivot coordinates or motion direction in Blender axes.",
+    "Kernel rows are specified as 10\u201312; the starter uses 10 pending approval.",
+    "Detailed part widths/depths and the precise overlap/placement are draft interpretations of the reference images."
+  ],
+  "approval": {
+    "reviewed_by_user": false
+  }
+}
