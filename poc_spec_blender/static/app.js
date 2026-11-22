@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 let blenderReady = false;
 let currentSpec = null;
+let selectedReferences = [];
 let toastTimer;
 
 function toast(message, error = false) {
@@ -44,15 +45,45 @@ function setBlenderState(state, message) {
   syncBuildButton();
 }
 
-function setImages() {
+function renderImages() {
   const list = $('image-list');
   list.replaceChildren();
-  for (const file of $('references').files) {
+  selectedReferences.forEach((file, index) => {
     const tag = document.createElement('span');
     tag.className = 'image-token';
-    tag.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+    const label = document.createElement('span');
+    label.textContent = `${index + 1}. ${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = '×';
+    remove.title = `Remove ${file.name}`;
+    remove.setAttribute('aria-label', `Remove ${file.name}`);
+    remove.addEventListener('click', () => {
+      selectedReferences.splice(index, 1);
+      renderImages();
+    });
+    tag.append(label, remove);
     list.appendChild(tag);
+  });
+}
+
+function addSelectedImages() {
+  const input = $('references');
+  const incoming = [...input.files];
+  input.value = '';
+  let added = 0;
+  for (const file of incoming) {
+    const duplicate = selectedReferences.some(existing => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified);
+    if (duplicate) continue;
+    if (selectedReferences.length >= 4) {
+      toast('The PoC accepts up to four reference images. Remove one before adding another.', true);
+      break;
+    }
+    selectedReferences.push(file);
+    added += 1;
   }
+  renderImages();
+  if (added) toast(`${added} image${added === 1 ? '' : 's'} added; ${selectedReferences.length}/4 selected.`);
 }
 
 function showResult(value, success = true) {
@@ -110,17 +141,17 @@ $('check-blender').addEventListener('click', async () => {
   }
 });
 
-$('references').addEventListener('change', setImages);
+$('references').addEventListener('change', addSelectedImages);
 $('approve-spec').addEventListener('change', syncBuildButton);
 $('load-starter').addEventListener('click', loadStarter);
 
 $('draft-spec').addEventListener('click', async () => {
   const prompt = $('prompt').value.trim();
   if (!prompt) return toast('Add a short design brief first.', true);
-  if ($('references').files.length > 4) return toast('Upload at most four images.', true);
+  if (selectedReferences.length > 4) return toast('Upload at most four images.', true);
   const form = new FormData();
   form.set('prompt', prompt);
-  for (const file of $('references').files) form.append('references', file);
+  for (const file of selectedReferences) form.append('references', file);
   const button = $('draft-spec');
   button.disabled = true;
   button.textContent = 'Drafting locally…';
