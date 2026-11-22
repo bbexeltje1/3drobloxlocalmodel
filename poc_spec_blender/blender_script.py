@@ -278,15 +278,15 @@ rod_between("Wishbone_Upper", (4.25*S, 0.16*S, 0.0), (4.76*S, 0.42*S, 0.0), 0.06
 rod_between("Wishbone_Lower", (4.25*S, 0.16*S, 0.0), (4.76*S, -0.10*S, 0.0), 0.065*S, mat_for("wishbone_muzzle", "bone"), 10)
 uv_sphere("Muzzle_Tip", (4.81*S, 0.16*S, 0.0), (0.20*S, 0.14*S, 0.16*S), mat_for("brass_trim"))
 
-# Keep the wattle small and tuck it directly under the beak so it reads as
-# turkey anatomy instead of obscuring the receiver. Its pivot remains provisional.
-wattle = uv_sphere("Wattle", (-0.82*S, 0.15*S, 0.0), (0.14*S, 0.26*S, 0.13*S), mat_for("wattle"), 16, 10)
+# Make the wattle a small, visible-side accent below the beak. Offset it out
+# from the head's center plane so it doesn't sit over the face in a hero view.
+wattle = uv_sphere("Wattle", (-0.78*S, 0.16*S, 0.30*S), (0.10*S, 0.18*S, 0.10*S), mat_for("wattle"), 16, 10)
 
 # Draft pivot empties make intended articulation visible in Blender; Roblox constraints are a later step.
 motion_by_part = {m.get("part_id"): m for m in SPEC.get("motions", [])}
 parent_to_pivot(trigger, "Trigger", (-1.67*S, -0.31*S, 0.0), motion_by_part.get("trigger", {}))
 parent_to_pivot(mag, "Magazine", (-1.35*S, -0.43*S, 0.0), motion_by_part.get("magazine", {}))
-parent_to_pivot(wattle, "Wattle", (-0.84*S, 0.27*S, 0.0), motion_by_part.get("wattle", {}))
+parent_to_pivot(wattle, "Wattle", (-0.78*S, 0.24*S, 0.30*S), motion_by_part.get("wattle", {}))
 
 # Add scene metadata for later Blender/Roblox automation.
 root_obj = bpy.data.objects.new(PREFIX + "Assembly", None)
