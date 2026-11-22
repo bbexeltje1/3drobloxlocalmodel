@@ -287,6 +287,146 @@ document.querySelectorAll('.nav-tab').forEach((btn) => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
+/* =========================================================================
+   Single Image → 3D pipeline UI
+   ========================================================================= */
+const singleInput = document.getElementById('single-image-file');
+let singleImageFile = null;
+let singlePreviewUrl = null;
+let singlePollTimer = null;
+const stageTitles = {
+  background_removal: 'FeyNobg background removal', preprocess: 'Image preparation',
+  gaussian_generation: 'Budget3D Gaussian generation', mesh_conversion: 'Gaussian → polygon mesh conversion',
+  blender: 'Blender MCP inspection', roblox_export: 'Roblox optimization & export',
+};
+
+singleInput.addEventListener('change', () => {
+  singleImageFile = singleInput.files && singleInput.files[0] || null;
+  document.getElementById('single-upload-label').textContent = singleImageFile ? singleImageFile.name : 'Choose a hero image';
+  if (singlePreviewUrl) URL.revokeObjectURL(singlePreviewUrl);
+  singlePreviewUrl = singleImageFile ? URL.createObjectURL(singleImageFile) : null;
+  const img = document.getElementById('single-original-preview');
+  if (singlePreviewUrl) img.src = singlePreviewUrl;
+  else img.removeAttribute('src');
+});
+
+async function refreshSingleConfig() {
+  const el = document.getElementById('single-runtime-status');
+  try {
+    const response = await fetch('/api/single-image/config');
+    const data = await response.json();
+    const feyReady = data.feynobg && data.feynobg.ready;
+    const budgetReady = data.budget3d && data.budget3d.ready;
+    const converterReady = data.gaussian_to_mesh && data.gaussian_to_mesh.configured;
+    const feyReason = data.feynobg && data.feynobg.package_error ? ` · ${data.feynobg.package_error}` : '';
+    const budgetReason = data.budget3d && data.budget3d.package_error ? ` · ${data.budget3d.package_error}` : '';
+    el.textContent = `FeyNobg local files + nobg runtime: ${feyReady ? 'ready' : 'not ready'}${feyReason} · Budget3D code/checkpoint/dependencies: ${budgetReady ? 'ready' : 'not ready'}${budgetReason} · Gaussian converter: ${converterReady ? 'configured (runtime validation required)' : 'not configured — generation stops explicitly after splat output'}\nNo weights are downloaded by this app.`;
+  } catch (err) {
+    el.textContent = `Could not read local pipeline configuration: ${err.message}`;
+  }
+}
+refreshSingleConfig();
+
+function renderSingleJob(job) {
+  document.getElementById('single-progress-bar').style.width = `${Math.max(0, Math.min(100, job.progress || 0))}%`;
+  document.getElementById('single-progress-value').textContent = `${job.progress || 0}%`;
+  document.getElementById('single-job-message').textContent = job.error ? `${job.error.stage || 'Pipeline'} failed: ${job.error.message}` : (job.message || 'Working…');
+  const entries = job.stages || {};
+  Object.entries(stageTitles).forEach(([key]) => {
+    const row = document.querySelector(`#single-stage-list li[data-stage="${key}"]`);
+    const stage = entries[key] || { status: 'pending', message: 'Waiting' };
+    row.dataset.status = stage.status;
+    row.querySelector('span').textContent = stage.message || stage.status;
+  });
+  document.getElementById('single-job-logs').textContent = (job.logs || []).join('\n');
+  document.getElementById('single-job-logs').scrollTop = document.getElementById('single-job-logs').scrollHeight;
+  if (job.files && job.files.processed && job.job_id) {
+    document.getElementById('single-processed-preview').src = `/outputs/${job.job_id}/${job.files.processed}`;
+  }
+  if (job.result && !document.getElementById('single-result').hidden) return;
+  if (job.status === 'completed' && job.result) {
+    const result = job.result;
+    document.getElementById('single-result').hidden = false;
+    document.getElementById('single-download-glb').href = result.glb_url;
+    document.getElementById('single-download-obj').href = result.obj_url;
+    document.getElementById('single-download-zip').href = result.zip_url;
+    const stats = result.stats;
+    document.getElementById('single-mesh-stats').textContent = `${stats.final_triangles.toLocaleString()} triangles · ${stats.dimensions_studs.x} × ${stats.dimensions_studs.y} × ${stats.dimensions_studs.z} studs · watertight ${stats.is_watertight ? 'yes' : 'no'}`;
+    applyJobResult(result).catch((err) => { document.getElementById('single-job-message').textContent = `Export succeeded, but preview failed: ${err.message}`; });
+  }
+}
+
+async function pollSingleJob(jobId) {
+  clearTimeout(singlePollTimer);
+  try {
+    const response = await fetch(`/api/single-image/${encodeURIComponent(jobId)}`);
+    const job = await response.json();
+    if (!response.ok) throw new Error(job.detail || 'Could not retrieve job status.');
+    renderSingleJob(job);
+    if (job.status === 'queued' || job.status === 'running') {
+      singlePollTimer = setTimeout(() => pollSingleJob(jobId), 1400);
+    } else {
+      document.getElementById('single-generate').disabled = false;
+      document.getElementById('single-generate').textContent = job.status === 'completed' ? 'Generate Another' : 'Retry Single Image 3D';
+      if (job.status === 'failed') refreshSingleConfig();
+    }
+  } catch (err) {
+    document.getElementById('single-job-message').textContent = `Status polling failed: ${err.message}`;
+    document.getElementById('single-generate').disabled = false;
+  }
+}
+
+document.getElementById('single-generate').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  if (!singleImageFile) { document.getElementById('single-job-message').textContent = 'Choose a hero image first.'; return; }
+  button.disabled = true;
+  button.textContent = 'Submitting…';
+  document.getElementById('single-result').hidden = true;
+  document.getElementById('single-processed-preview').removeAttribute('src');
+  const presetDefaults = { ugc_hat: [3600, 2.2], map_prop: [2400, 3.5], weapon_tool: [7500, 4.2], hero_meshpart: [15000, 6.5] };
+  const preset = document.getElementById('single-preset').value;
+  const [targetTris, targetStuds] = presetDefaults[preset];
+  const fd = new FormData();
+  fd.append('hero_image', singleImageFile);
+  fd.append('remove_background', String(document.getElementById('single-remove-bg').checked));
+  fd.append('token_budget', document.getElementById('single-budget').value);
+  fd.append('blender_inspection', String(document.getElementById('single-blender').checked));
+  fd.append('asset_name', document.getElementById('single-asset-name').value.trim() || 'Single_Image_Asset');
+  fd.append('preset_id', preset);
+  fd.append('target_tris', String(targetTris));
+  fd.append('target_studs', String(targetStuds));
+  fd.append('texture_size', '1024');
+  try {
+    const response = await fetch('/api/single-image', { method: 'POST', body: fd });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Could not start pipeline.');
+    document.getElementById('single-job-message').textContent = 'Job accepted; processing locally…';
+    document.getElementById('single-job-logs').textContent = '';
+    button.textContent = 'Processing…';
+    pollSingleJob(data.job_id);
+  } catch (err) {
+    button.disabled = false;
+    button.textContent = 'Generate Single Image 3D';
+    document.getElementById('single-job-message').textContent = err.message;
+  }
+});
+
+document.getElementById('single-check-blender').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = 'Querying MCP…';
+  const el = document.getElementById('single-runtime-status');
+  try {
+    const response = await fetch('/api/single-image/blender-status');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Blender MCP check failed.');
+    el.textContent = `Blender MCP connected through existing PoC. Tools: ${(data.tools || []).join(', ')}. Add-on status: ${data.addon_status || 'available'}`;
+  } catch (err) { el.textContent = `Blender MCP unavailable: ${err.message}`; }
+  finally { button.disabled = false; button.textContent = 'Check Blender MCP tools'; }
+});
+
+document.getElementById('single-view-result').addEventListener('click', () => switchTab('creator'));
+
 // Shading & Viewport Toolbar Buttons
 document.querySelectorAll('#shading-group .vp-btn').forEach((btn) => {
   btn.addEventListener('click', () => {

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import io
+import os
 import shutil
 import time
 import uuid
 from pathlib import Path
 from typing import Optional, Dict
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,6 +28,11 @@ from .sample_generator import ensure_sample_sheets_generated, SAMPLE_CATALOG
 from .engines.visual_hull import reconstruct_multiview_visual_hull
 from .engines.comfy_pixal3d import check_comfyui_status, run_comfy_pixal3d_multiview
 from .engines.hunyuan_mv import is_hunyuan_available, run_hunyuan3d_2mv_lowvram
+from .single_image.background_removal import local_status as feynobg_local_status
+from .single_image.budget3d import status as budget3d_local_status
+from .single_image.gaussian_to_mesh import conversion_status as gaussian_conversion_status
+from .single_image.blender_bridge import BlenderBridgeError, existing_poc_status
+from .single_image.pipeline import create_job as create_single_image_job, get_job as get_single_image_job, run_job as run_single_image_job
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
@@ -400,6 +406,73 @@ async def api_optimize_mesh(
             engine_note=note,
         )
     )
+
+
+@app.get("/api/single-image/config")
+def single_image_config():
+    """Report local paths/runtime availability without downloading or loading model weights."""
+    return {
+        "feynobg": feynobg_local_status(),
+        "budget3d": budget3d_local_status(),
+        "gaussian_to_mesh": gaussian_conversion_status(),
+        "blender_poc_url": os.getenv("BLENDER_POC_URL", "http://127.0.0.1:8765"),
+        "notes": [
+            "Budget3D's official sampler uses Idol ImagePreprocessor internally.",
+            "Budget3D Gaussian PLY is never passed directly to the triangle-mesh optimizer.",
+            "No model weights or external code are downloaded by this application.",
+        ],
+    }
+
+
+@app.get("/api/single-image/blender-status")
+def single_image_blender_status():
+    try:
+        # This queries the already-running PoC, which owns the only MCP client session.
+        return existing_poc_status()
+    except BlenderBridgeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post("/api/single-image")
+async def single_image_generate(
+    background_tasks: BackgroundTasks,
+    hero_image: UploadFile = File(...),
+    remove_background: bool = Form(True),
+    token_budget: float = Form(0.0625),
+    blender_inspection: bool = Form(False),
+    asset_name: str = Form("Single_Image_Asset"),
+    preset_id: str = Form("weapon_tool"),
+    target_tris: int = Form(7500),
+    target_studs: float = Form(4.2),
+    texture_size: int = Form(1024),
+):
+    if preset_id not in ROBLOX_PRESETS:
+        raise HTTPException(status_code=400, detail="Unknown Roblox preset.")
+    if not 0.0625 <= token_budget <= 1.0:
+        raise HTTPException(status_code=400, detail="Budget3D token budget must be from 0.0625 to 1.0.")
+    if target_tris < 200 or target_tris > ROBLOX_HARD_MESHPART_TRI_CAP - 100:
+        raise HTTPException(status_code=400, detail="Triangle target is outside the supported MeshPart range.")
+    content = await hero_image.read(25 * 1024 * 1024 + 1)
+    try:
+        job_id = create_single_image_job(
+            image_bytes=content, filename=hero_image.filename or "hero.png",
+            use_background_removal=remove_background, budget=token_budget,
+            blender_enabled=blender_inspection, asset_name=asset_name or "Single_Image_Asset",
+            preset_id=preset_id, target_tris=target_tris, target_studs=target_studs,
+            texture_size=texture_size,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    background_tasks.add_task(run_single_image_job, job_id)
+    return {"job_id": job_id, "status_url": f"/api/single-image/{job_id}", "message": "Job accepted"}
+
+
+@app.get("/api/single-image/{job_id}")
+def single_image_job_status(job_id: str):
+    job = get_single_image_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Single-image job not found.")
+    return job
 
 
 app.mount("/samples", StaticFiles(directory=str(SAMPLES_DIR)), name="samples")

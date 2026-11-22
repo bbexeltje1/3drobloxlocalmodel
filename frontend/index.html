@@ -27,6 +27,7 @@
     </div>
 
     <nav class="nav-tabs" role="tablist">
+      <button class="nav-tab" data-tab="single">Single Image → 3D</button>
       <button class="nav-tab active" data-tab="creator">1. Multi-View Creator</button>
       <button class="nav-tab" data-tab="optimizer">2. GLB / OBJ Decimator &amp; PBR Splitter</button>
       <button class="nav-tab" data-tab="setup">3. 6 GB VRAM Setup &amp; HF Models</button>
@@ -37,6 +38,82 @@
       <span id="hw-status-text">Probing local environment...</span>
     </div>
   </header>
+
+  <!-- ADDITIONAL SINGLE-IMAGE PIPELINE -->
+  <section class="tab-view" id="tab-single">
+    <div class="page-scroll single-page">
+      <div class="single-columns">
+        <div class="section-card">
+          <div class="section-header"><span class="section-title">Single Image → 3D</span></div>
+          <p class="single-hint">Upload one three-quarter hero image. The original and every intermediate artifact are retained in this job folder. Generation uses local FeyNobg and the official Budget3D sampler only; failures do not switch to another model.</p>
+          <label class="single-upload" for="single-image-file">
+            <strong id="single-upload-label">Choose a hero image</strong>
+            <span>PNG, JPG, WEBP or BMP · maximum 25 MB</span>
+          </label>
+          <input id="single-image-file" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" hidden />
+          <div class="single-previews">
+            <div><span class="section-title">Original image</span><img id="single-original-preview" alt="Original uploaded hero" /></div>
+            <div><span class="section-title">FeyNobg processed image</span><img id="single-processed-preview" alt="Processed transparent PNG" /></div>
+          </div>
+          <div class="field">
+            <label class="check-field"><input id="single-remove-bg" type="checkbox" checked /> Remove background with local FeyNobg (default)</label>
+          </div>
+          <div class="two-col">
+            <div class="field">
+              <label for="single-budget">Budget3D token budget</label>
+              <select id="single-budget">
+                <option value="0.0625">6.25% · lowest supported</option>
+                <option value="0.125">12.5%</option>
+                <option value="0.25">25%</option>
+                <option value="0.5">50%</option>
+                <option value="1">100%</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="single-preset">Roblox target</label>
+              <select id="single-preset">
+                <option value="weapon_tool">Weapon / Tool · 7,500 tris</option>
+                <option value="ugc_hat">UGC Rigid · 3,600 tris</option>
+                <option value="map_prop">Map Prop · 2,400 tris</option>
+                <option value="hero_meshpart">Hero MeshPart · 15,000 tris</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label for="single-asset-name">Asset name</label><input id="single-asset-name" value="Single_Image_Asset" maxlength="80" /></div>
+          <label class="check-field single-blender-option"><input id="single-blender" type="checkbox" /> Inspect/export through the existing Blender MCP PoC (optional; PoC must be running on this PC)</label>
+          <div class="single-runtime" id="single-runtime-status">Checking configured local model paths…</div>
+          <div class="single-actions">
+            <button class="primary-btn" id="single-generate" type="button">Generate Single Image 3D</button>
+            <button class="mini-btn" id="single-check-blender" type="button">Check Blender MCP tools</button>
+          </div>
+        </div>
+        <div class="section-card single-progress-card">
+          <div class="section-header"><span class="section-title">Pipeline progress</span><span id="single-progress-value">Ready</span></div>
+          <div class="single-progress-track"><div id="single-progress-bar"></div></div>
+          <ol class="single-stage-list" id="single-stage-list">
+            <li data-stage="background_removal"><b>FeyNobg background removal</b><span>Waiting</span></li>
+            <li data-stage="preprocess"><b>Image preparation</b><span>Waiting</span></li>
+            <li data-stage="gaussian_generation"><b>Budget3D Gaussian generation</b><span>Waiting</span></li>
+            <li data-stage="mesh_conversion"><b>Gaussian → polygon mesh conversion</b><span>Waiting</span></li>
+            <li data-stage="blender"><b>Blender MCP inspection</b><span>Optional</span></li>
+            <li data-stage="roblox_export"><b>Roblox optimization &amp; export</b><span>Waiting</span></li>
+          </ol>
+          <div id="single-job-message" class="single-job-message">No job submitted.</div>
+          <pre id="single-job-logs" class="single-logs"></pre>
+          <div id="single-result" class="single-result" hidden>
+            <strong>Roblox bundle</strong>
+            <div class="single-downloads">
+              <a id="single-download-glb" class="secondary-btn" download>GLB</a>
+              <a id="single-download-obj" class="secondary-btn" download>OBJ</a>
+              <a id="single-download-zip" class="secondary-btn" download>Roblox ZIP</a>
+            </div>
+            <p id="single-mesh-stats"></p>
+            <button id="single-view-result" class="mini-btn" type="button">View final mesh in existing 3D viewport</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- TAB 1: MULTI-VIEW CREATOR STUDIO -->
   <main class="tab-view active" id="tab-creator">
