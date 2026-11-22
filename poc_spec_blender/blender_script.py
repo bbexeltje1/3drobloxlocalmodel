@@ -278,21 +278,23 @@ rod_between("Wishbone_Upper", (4.25*S, 0.16*S, 0.0), (4.76*S, 0.42*S, 0.0), 0.06
 rod_between("Wishbone_Lower", (4.25*S, 0.16*S, 0.0), (4.76*S, -0.10*S, 0.0), 0.065*S, mat_for("wishbone_muzzle", "bone"), 10)
 uv_sphere("Muzzle_Tip", (4.81*S, 0.16*S, 0.0), (0.20*S, 0.14*S, 0.16*S), mat_for("brass_trim"))
 
-# Wattle has its own object and a draft pivot; pivot coordinates need user review.
-wattle = uv_sphere("Wattle", (3.68*S, -0.56*S, 0.0), (0.25*S, 0.53*S, 0.24*S), mat_for("wattle"), 16, 10)
+# Place the wattle under the turkey head, rather than at the far end of the rails.
+# Its swing pivot remains provisional and editable in Blender.
+wattle = uv_sphere("Wattle", (-1.22*S, -0.16*S, 0.0), (0.18*S, 0.38*S, 0.18*S), mat_for("wattle"), 16, 10)
 
 # Draft pivot empties make intended articulation visible in Blender; Roblox constraints are a later step.
 motion_by_part = {m.get("part_id"): m for m in SPEC.get("motions", [])}
 parent_to_pivot(trigger, "Trigger", (-1.67*S, -0.31*S, 0.0), motion_by_part.get("trigger", {}))
 parent_to_pivot(mag, "Magazine", (-1.35*S, -0.43*S, 0.0), motion_by_part.get("magazine", {}))
-parent_to_pivot(wattle, "Wattle", (3.68*S, -0.31*S, 0.0), motion_by_part.get("wattle", {}))
+parent_to_pivot(wattle, "Wattle", (-1.22*S, -0.04*S, 0.0), motion_by_part.get("wattle", {}))
 
 # Add scene metadata for later Blender/Roblox automation.
 root_obj = bpy.data.objects.new(PREFIX + "Assembly", None)
 collection.objects.link(root_obj)
 created.append(root_obj)
-root_obj.empty_display_type = "CUBE"
-root_obj.empty_display_size = 0.25*S
+# A cube-shaped Empty visually obscures the assembly in the viewport.
+root_obj.empty_display_type = "PLAIN_AXES"
+root_obj.empty_display_size = 0.08*S
 root_obj["asset_name"] = SPEC["asset_name"]
 root_obj["unit_mode"] = SPEC.get("unit_mode", "normalized")
 root_obj["proportion_length_height_width"] = "{}:{}:{}".format(L, H, W)

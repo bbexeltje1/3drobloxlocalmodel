@@ -55,6 +55,8 @@ class SpecTests(unittest.TestCase):
         parsed_spec = eval(compile(ast.Expression(spec_assignment.value), "generated_spec_literal", "eval"), {"json": json})
         self.assertEqual(parsed_spec, spec)
         self.assertIn('json.loads(', source)
+        self.assertIn('root_obj.empty_display_type = "PLAIN_AXES"', source)
+        self.assertIn('wattle = uv_sphere("Wattle", (-1.22*S, -0.16*S, 0.0)', source)
 
 
 class MCPRequestLifecycleTests(unittest.IsolatedAsyncioTestCase):
