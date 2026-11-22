@@ -83,7 +83,7 @@ def generate(image: Path, output_ply: Path, budget: float, on_log: Callable[[str
 
     # The official sampler selects CUDA when available and CPU otherwise. This integration
     # explicitly requires CUDA so it never silently turns a 6 GB GPU job into a CPU run.
-    probe = [python, "-c", "import torch; print(json.dumps({'cuda':torch.cuda.is_available(),'gpu':torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,'vram':round(torch.cuda.get_device_properties(0).total_memory/1024**3,2) if torch.cuda.is_available() else None}))"]
+    probe = [python, "-c", "import json, torch; print(json.dumps({'cuda':torch.cuda.is_available(),'gpu':torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,'vram':round(torch.cuda.get_device_properties(0).total_memory/1024**3,2) if torch.cuda.is_available() else None}))"]
     try:
         check = subprocess.run(probe, cwd=repo, capture_output=True, text=True, timeout=45, check=False)
     except Exception as exc:
