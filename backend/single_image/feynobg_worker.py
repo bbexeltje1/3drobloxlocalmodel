@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
+import traceback
 from pathlib import Path
 
 from PIL import Image
@@ -18,7 +19,8 @@ def main() -> int:
         import torch
         from nobg import AutoModel, AutoProcessor
     except Exception as exc:
-        print(f"Cannot import official nobg/PyTorch runtime in configured FeyNobg environment: {exc}", file=sys.stderr)
+        print(f"Cannot import official nobg/PyTorch runtime in configured FeyNobg environment: {type(exc).__name__}: {exc}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return 3
     try:
         model = AutoModel.from_pretrained(str(model_dir)).eval()
