@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import asyncio
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -44,6 +46,15 @@ class SpecTests(unittest.TestCase):
         compile(source, "generated_blender_build.py", "exec")
         self.assertIn("export_format=\"GLB\"", source)
         self.assertIn("RoForge_GobbleRail_POC", source)
+        tree = ast.parse(source)
+        spec_assignment = next(
+            node for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "SPEC" for target in node.targets)
+        )
+        parsed_spec = eval(compile(ast.Expression(spec_assignment.value), "generated_spec_literal", "eval"), {"json": json})
+        self.assertEqual(parsed_spec, spec)
+        self.assertIn('json.loads(', source)
 
 
 class MCPRequestLifecycleTests(unittest.IsolatedAsyncioTestCase):

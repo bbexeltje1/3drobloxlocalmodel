@@ -143,7 +143,7 @@ async def draft_spec(
     elif len(labels) != len(references):
         raise HTTPException(status_code=400, detail="Reference labels must match the uploaded images.")
 
-    images: list[tuple[str, str]]
+    images: list[tuple[str, str]] = []
     for upload in references:
         mime, encoded = await _read_upload(upload)
         images.append((mime, encoded))

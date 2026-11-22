@@ -7,15 +7,19 @@ from typing import Any
 
 
 def build_script(spec: dict[str, Any], glb_path: Path) -> str:
-    # json.dumps escapes names/colors before embedding them in Python source.
+    # Keep the JSON data inside a Python string literal, then parse it in Blender.
+    # JSON's true/false/null are not Python literals; interpolating the raw object
+    # directly into exec()-ed Python causes NameError (e.g. `true` is undefined).
     payload = json.dumps(spec, ensure_ascii=True, separators=(",", ":"))
+    payload_literal = repr(payload)
     output = json.dumps(str(glb_path.resolve()), ensure_ascii=True)
     template = r'''
 import bpy
+import json
 import math
 from mathutils import Vector
 
-SPEC = __SPEC_JSON__
+SPEC = json.loads(__SPEC_JSON__)
 GLB_PATH = __GLB_PATH_JSON__
 PREFIX = "GR_"
 COLLECTION_NAME = "RoForge_GobbleRail_POC"
@@ -323,4 +327,4 @@ bpy.context.view_layer.objects.active = root_obj
 bpy.ops.export_scene.gltf(filepath=GLB_PATH, export_format="GLB", use_selection=True, export_apply=True)
 print("ROFORGE_POC_RESULT=" + SPEC["asset_name"] + "|" + GLB_PATH + "|objects=" + str(len(created)))
 '''
-    return template.replace("__GLB_PATH_JSON__", output).replace("__SPEC_JSON__", payload)
+    return template.replace("__GLB_PATH_JSON__", output).replace("__SPEC_JSON__", payload_literal)
